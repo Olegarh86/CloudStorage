@@ -1,0 +1,95 @@
+services:
+  nginx_storage:
+    image: 'nginx:alpine'
+    container_name: "nginx_storage"
+    restart: "always"
+    networks:
+      - storage-network
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx-conf:/etc/nginx/conf.d
+    depends_on:
+      - storage-app
+  db_storage:
+    image: 'olegarholeg/postgres:16-alpine'
+    container_name: "db_storage"
+    restart: "always"
+    networks:
+      - storage-network
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      - 'POSTGRES_DB=${POSTGRES_DB}'
+      - 'POSTGRES_PASSWORD=${POSTGRES_PASSWORD}'
+      - 'POSTGRES_USER=${POSTGRES_USER}'
+      - 'MAX_FILE_SIZE=${MAX_FILE_SIZE}'
+      - 'MAX_REQUEST_SIZE=${MAX_REQUEST_SIZE}'
+    shm_size: '64mb'
+    command: postgres -c shared_buffers=32MB -c max_connections-20
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  redis_storage:
+    image: 'olegarholeg/redis:7-alpine'
+    container_name: "redis_storage"
+    restart: "always"
+    networks:
+      - storage-network
+    command: redis-server --maxmemory 48mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  minio:
+    image: "olegarholeg/minio:latest"
+    container_name: minio
+    restart: always
+    networks:
+      - storage-network
+    ports:
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    environment:
+      - 'MINIO_ROOT_USER=${MINIO_ROOT_USER}'
+      - 'MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}'
+      - 'MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME}'
+    command: server /data --address ":9000" --console-address ":9001"
+  storage-app:
+    image: "olegarholeg/storage-app"
+    container_name: "storage-app"
+    restart: "always"
+    networks:
+      - storage-network
+    ports:
+      - "127.0.0.1:8090:8090"
+    depends_on:
+      db_storage:
+        condition: service_healthy
+      redis_storage:
+        condition: service_healthy
+    environment:
+      - JAVA_TOOL_OPTIONS=-Xmx256m -Xms64m
+      - SPRING_PROFILES_ACTIVE=docker
+      - JAVA_DB_URL
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+      - REDIS_HOST
+      - REDIS_PORT
+      - REDIS_PASSWORD
+      - MINIO_ROOT_USER
+      - MINIO_ROOT_PASSWORD
+      - MINIO_BUCKET_NAME
+      - MAX_FILE_SIZE
+      - MAX_REQUEST_SIZE
+networks:
+  storage-network:
+    driver: bridge
+    name: storage-network
+volumes:
+  pgdata:
+  minio_data:

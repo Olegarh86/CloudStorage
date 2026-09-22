@@ -1,0 +1,23 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2
+      author: Olegarh
+      changes:
+        - insert:
+            tableName: users
+            columns:
+              - column:
+                  name: user_name
+                  value: Qwert
+              - column:
+                  name: password
+                  value: 12345
+        - insert:
+            tableName: users
+            columns:
+              - column:
+                  name: user_name
+                  value: Qwerty
+              - column:
+                  name: password
+                  value: 12345

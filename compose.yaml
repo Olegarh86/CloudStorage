@@ -1,0 +1,82 @@
+services:
+  db_storage:
+    image: 'postgres:16-alpine'
+    container_name: "db_storage"
+    restart: "always"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      - 'POSTGRES_DB=${POSTGRES_DB}'
+      - 'POSTGRES_PASSWORD=${POSTGRES_PASSWORD}'
+      - 'POSTGRES_USER=${POSTGRES_USER}'
+      - 'MAX_FILE_SIZE=${MAX_FILE_SIZE}'
+      - 'MAX_REQUEST_SIZE=${MAX_REQUEST_SIZE}'
+    ports:
+      - '5433:5432'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  redis_storage:
+    image: 'redis:7-alpine'
+    container_name: "redis_storage"
+    restart: "always"
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  redis_insight:
+    image: "redis/redisinsight:3.8"
+    container_name: redis_insight
+    restart: always
+    ports:
+      - "5540:5540"
+  minio:
+    image: "minio/minio:RELEASE.2025-09-07T16-13-09Z-cpuv1"
+    container_name: minio
+    restart: always
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    environment:
+      - 'MINIO_ROOT_USER=${MINIO_ROOT_USER}'
+      - 'MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}'
+      - 'MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME}'
+    command: server /data --address ":9000" --console-address ":9001"
+  storage-app:
+    build: "."
+    image: "storage-app"
+    container_name: "storage-app"
+    restart: "always"
+    ports:
+      - "81:8090"
+    depends_on:
+      db_storage:
+        condition: service_healthy
+      redis_storage:
+        condition: service_healthy
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - JAVA_DB_URL
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+      - REDIS_HOST
+      - REDIS_PORT
+      - REDIS_PASSWORD
+      - MINIO_ROOT_USER
+      - MINIO_ROOT_PASSWORD
+      - MINIO_BUCKET_NAME
+      - MAX_FILE_SIZE
+      - MAX_REQUEST_SIZE
+networks:
+  storage-network:
+    driver: bridge
+volumes:
+  pgdata:
+  minio_data:
