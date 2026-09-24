@@ -31,7 +31,6 @@ public class MinioInitializer implements CommandLineRunner {
                 System.out.printf("Bucket %s already exists.", minioProperties.getBucketName());
             }
         } catch (Exception e) {
-            e.printStackTrace();
             throw new MinioInitializeException(e);
         }
     }
