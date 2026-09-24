@@ -6,7 +6,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 public class FileUploadDto {
 
-        @Schema(description = "Список файлов для загрузки", type = "array", implementation = byte[].class)
+        @Schema(description = "List of files to download", type = "array", implementation = byte[].class)
         private MultipartFile[] object;
 
         public MultipartFile[] getObject() {

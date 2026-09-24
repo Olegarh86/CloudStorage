@@ -1,35 +1,21 @@
 package ru.cloudStorage.CloudStorage;
 
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.Cookie;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 import ru.cloudStorage.CloudStorage.dto.AuthRequest;
-import ru.cloudStorage.CloudStorage.repository.UserRepository;
-import ru.cloudStorage.CloudStorage.service.AuthService;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-import static org.mockito.Mockito.when;
 
 @Transactional
-public class UserAuthIntegrationTest extends BaseIntegrationTest {
-    private final ObjectMapper mapper = new ObjectMapper();
-    private final String name = "TestUser";
-    private final String password = "TestUser123";
-    @MockitoBean
-    private AuthService authService;
-
-    @Autowired
-    private UserRepository userRepository;
+public class AuthIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void successSignUpTest() throws Exception {
@@ -54,7 +40,8 @@ public class UserAuthIntegrationTest extends BaseIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Username must be between 5 and 20 characters"));
+                .andExpect(jsonPath("$.message")
+                        .value("Username must be between 5 and 20 characters"));
     }
 
     @Test
@@ -66,7 +53,8 @@ public class UserAuthIntegrationTest extends BaseIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Username must be between 5 and 20 characters"));
+                .andExpect(jsonPath("$.message")
+                        .value("Username must be between 5 and 20 characters"));
     }
 
     @Test
@@ -78,7 +66,8 @@ public class UserAuthIntegrationTest extends BaseIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Invalid username format"));
+                .andExpect(jsonPath("$.message")
+                        .value("Invalid username format"));
     }
 
     @Test
@@ -122,7 +111,8 @@ public class UserAuthIntegrationTest extends BaseIntegrationTest {
                         .content(requestBody))
                 .andExpect(status().isBadRequest())
                 .andExpect(cookie().doesNotExist("SESSION"))
-                .andExpect(jsonPath("$.message").value("Invalid username format"));
+                .andExpect(jsonPath("$.message")
+                        .value("Invalid username format"));
     }
 
     @Test
@@ -137,25 +127,35 @@ public class UserAuthIntegrationTest extends BaseIntegrationTest {
                         .content(requestBody))
                 .andExpect(status().isUnauthorized())
                 .andExpect(cookie().doesNotExist("SESSION"))
-                .andExpect(jsonPath("$.message").value("Invalid username or password"));
+                .andExpect(jsonPath("$.message")
+                        .value("Invalid username or password"));
     }
 
     @Test
-    void internalServerErrorSingInTest() throws Exception {
+    void successSignOutTest() throws Exception {
         successSignUpTest();
 
         AuthRequest authRequest = new AuthRequest(name, password);
-
-        doThrow(new NullPointerException()).when(authService)
-                .login(any(AuthRequest.class),any(MockHttpServletRequest.class));
-
         String requestBody = mapper.writeValueAsString(authRequest);
 
-        mockMvc.perform(post("/api/auth/sign-in")
+        MvcResult mvcResult = mockMvc.perform(post("/api/auth/sign-in")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
-                .andExpect(status().is5xxServerError())
-                .andExpect(cookie().doesNotExist("SESSION"))
-                /*.andExpect(jsonPath("$.message").value("Invalid username or password"))*/;
+                .andExpect(status().isOk())
+                .andExpect(cookie().exists("SESSION"))
+                .andReturn();
+
+        Cookie session = mvcResult.getResponse().getCookie("SESSION");
+        Assertions.assertNotNull(session);
+
+        MvcResult resultActions = mockMvc.perform(post("/api/auth/sign-out")
+                        .cookie(session))
+                .andExpect(status().isNoContent())
+                .andExpect(cookie().exists("SESSION"))
+                .andReturn();
+
+        Cookie emptyCookie = resultActions.getResponse().getCookie("SESSION");
+        Assertions.assertNotNull(emptyCookie);
+        assertEquals(0, emptyCookie.getMaxAge());
     }
 }

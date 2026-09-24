@@ -4,6 +4,10 @@ build/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
+*.properties
+logs/
+*.log
+launch-local-nginx.sh
 
 ### STS ###
 .apt_generated
