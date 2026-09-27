@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -90,8 +91,8 @@ public class ResourceController {
                                                                   @RequestPart("object") MultipartFile[] files,
                                                                   @Parameter(description = "Full path to the resource")
                                                                   @RequestParam("path") String path) {
-        RequestDto dto = pathCreator.createRequestDto(userDetails.getUsername(), path);
-        List<ResourceResponseDto> upload = minioService.upload(dto, files);
+        RequestDto requestDto = pathCreator.createRequestDto(userDetails.getUsername(), path);
+        List<ResourceResponseDto> upload = minioService.upload(requestDto, files);
         return new ResponseEntity<>(upload, HttpStatus.CREATED);
     }
 
@@ -109,7 +110,7 @@ public class ResourceController {
         RequestDto dto = pathCreator.createRequestDto(userDetails.getUsername(), path);
         InputStreamResource resource = new InputStreamResource(minioService.download(dto));
 
-        return new ResponseEntity<>(resource, HttpStatus.OK);
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_OCTET_STREAM).body(resource);
     }
 
     @PostMapping("/move")

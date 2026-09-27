@@ -32,14 +32,13 @@ public class AuthService {
     }
 
     @Transactional
-    public String createNewUser(AuthRequest authRequest){
+    public User createNewUser(AuthRequest authRequest){
         if (userRepository.findByUserName(authRequest.username()).isPresent()) {
             throw new UserAlreadyExistException(authRequest.username());
         }
         String encodedPassword = passwordEncoder.encode(authRequest.password());
         User user = new User(authRequest.username(), encodedPassword);
-        User save = userRepository.save(user);
-        return save.getUserName();
+        return userRepository.save(user);
     }
 
     public void login(AuthRequest authRequest, HttpServletRequest request) {

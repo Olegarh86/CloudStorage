@@ -1,5 +1,8 @@
 package ru.cloudStorage.CloudStorage.util;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import ru.cloudStorage.CloudStorage.config.MinioProperties;
@@ -116,7 +119,7 @@ public class PathCreator {
 
     private String getRootPath(String username) {
         Long id = userRepository.findByUserName(username)
-                .orElseThrow(() -> new NotFoundException("User with name " + username + "not found"))
+                .orElseThrow(() -> new NotFoundException("User with name " + username + " not found"))
                 .getId();
         return "user-" + id + "-files/";
     }
@@ -140,5 +143,11 @@ public class PathCreator {
         if (folderNameWithoutSlash.length() > 200 || !folderNameWithoutSlash.matches("^[^/\\\\:*?\"<>|]+$")) {
             throw new ValidateException(folderName);
         }
+    }
+
+    public RequestDto createRootPath(Long id) {
+        String bucketName = minioProperties.getBucketName();
+        String rootPath = "user-" + id + "-files/";
+        return new RequestDto(bucketName, rootPath, "");
     }
 }

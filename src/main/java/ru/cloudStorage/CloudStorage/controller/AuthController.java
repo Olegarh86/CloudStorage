@@ -11,7 +11,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.cloudStorage.CloudStorage.dto.AuthRequest;
 import ru.cloudStorage.CloudStorage.dto.AuthResponse;
+import ru.cloudStorage.CloudStorage.model.User;
 import ru.cloudStorage.CloudStorage.service.AuthService;
+import ru.cloudStorage.CloudStorage.service.MinIOService;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -19,10 +21,12 @@ import ru.cloudStorage.CloudStorage.service.AuthService;
 public class AuthController {
 
     private final AuthService authService;
+    private final MinIOService minioService;
 
     @Autowired
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, MinIOService minioService) {
         this.authService = authService;
+        this.minioService = minioService;
     }
 
     @PostMapping("/sign-up")
@@ -34,9 +38,10 @@ public class AuthController {
     @ApiResponse(responseCode = "409", description = "Username is busy")
     @ApiResponse(responseCode = "500", description = "Unknown error")
     public ResponseEntity<AuthResponse> createNewUser(@RequestBody @Valid AuthRequest authRequest, HttpServletRequest request) {
-        String userName = authService.createNewUser(authRequest);
+        User newUser = authService.createNewUser(authRequest);
         authService.login(authRequest, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(new AuthResponse(userName));
+        minioService.createNewRootFolder(newUser.getId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(new AuthResponse(newUser.getUserName()));
     }
 
     @PostMapping("/sign-in")

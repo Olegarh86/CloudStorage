@@ -56,7 +56,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NotFoundException.class) // TODO For resource not found
     public ResponseEntity<ErrorMessage> handleNotFoundException(NotFoundException e) {
         log.warn(e.getMessage(), e);
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorMessage("Resource not found"));
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorMessage(e.getMessage()));
     }
 
     @ExceptionHandler(AlreadyExistException.class)
