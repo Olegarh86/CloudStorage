@@ -59,12 +59,11 @@ public class PathCreator {
     }
 
     public FolderDto createFolderDto(RequestDto dto) {
-        String bucketName = dto.bucketName();
         String rootPath = dto.rootPath();
         String pathWithoutName = getObjectPath(dto.decodedPath());
         String name = getObjectName(dto.decodedPath());
         String fullPath = rootPath + pathWithoutName + name;
-        return new FolderDto(fullPath, bucketName, rootPath, pathWithoutName, name);
+        return new FolderDto(fullPath, dto.bucketName(), rootPath, pathWithoutName, name);
     }
 
     public String getObjectPath(String path) {

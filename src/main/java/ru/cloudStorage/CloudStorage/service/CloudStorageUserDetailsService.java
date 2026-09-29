@@ -23,7 +23,7 @@ public class CloudStorageUserDetailsService implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(@NotNull String username) throws UsernameNotFoundException {
         User user = userRepository.findByUserName(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User with name " + username + " not found"));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with name: " + username));
 
         return org.springframework.security.core.userdetails.User.builder()
                 .username(user.getUserName())

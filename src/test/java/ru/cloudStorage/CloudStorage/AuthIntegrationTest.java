@@ -82,7 +82,7 @@ public class AuthIntegrationTest extends BaseIntegrationTest {
                 .content(requestBody))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message")
-                        .value("User with name: " + name + " already exist, change another name"));
+                        .value("User with name: '" + name + "' already exist, change another"));
     }
 
     @Test

@@ -11,7 +11,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.cloudStorage.CloudStorage.exception.UserAlreadyExistException;
+import ru.cloudStorage.CloudStorage.exception.AlreadyExistException;
 import ru.cloudStorage.CloudStorage.dto.AuthRequest;
 import ru.cloudStorage.CloudStorage.model.User;
 import ru.cloudStorage.CloudStorage.repository.UserRepository;
@@ -34,7 +34,7 @@ public class AuthService {
     @Transactional
     public User createNewUser(AuthRequest authRequest){
         if (userRepository.findByUserName(authRequest.username()).isPresent()) {
-            throw new UserAlreadyExistException(authRequest.username());
+            throw new AlreadyExistException("User with name: '" + authRequest.username() + "' already exist, change another");
         }
         String encodedPassword = passwordEncoder.encode(authRequest.password());
         User user = new User(authRequest.username(), encodedPassword);

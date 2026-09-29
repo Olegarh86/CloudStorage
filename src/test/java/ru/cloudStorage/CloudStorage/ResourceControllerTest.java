@@ -10,7 +10,6 @@ import ru.cloudStorage.CloudStorage.dto.AuthRequest;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @Transactional
@@ -141,7 +140,7 @@ public class ResourceControllerTest extends BaseIntegrationTest {
                         .param("path", "example.txt"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
-                        .value("Object example.txt not found"));
+                        .value("Object not found: 'example.txt'"));
     }
 
     @Test
@@ -190,7 +189,7 @@ public class ResourceControllerTest extends BaseIntegrationTest {
     }
 
     @Test
-    void RemoveResourceTest() throws Exception {
+    void RenameResourceTest() throws Exception {
         MockMultipartFile mockFile = new MockMultipartFile(
                 "object",
                 "example.txt",
@@ -201,7 +200,13 @@ public class ResourceControllerTest extends BaseIntegrationTest {
                 .cookie(myCookie)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .file(mockFile)
-                .param("path", ""));
+                .param("path", ""))
+                .andExpect(status().isCreated())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("[0].path").value(""))
+                .andExpect(jsonPath("[0].name").value("example.txt"))
+                .andExpect(jsonPath("[0].size").value(34))
+                .andExpect(jsonPath("[0].type").value("FILE"));
 
         mockMvc.perform(post("/api/resource/move")
                         .cookie(myCookie)
@@ -213,10 +218,43 @@ public class ResourceControllerTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.name").value("exampleExample.txt"))
                 .andExpect(jsonPath("$.size").value(34))
                 .andExpect(jsonPath("$.type").value("FILE"));
+
+        mockMvc.perform(get("/api/resource")
+                        .cookie(myCookie)
+                        .param("path", "example.txt"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message")
+                        .value("Object not found: 'Object not exist: example.txt'"));
+
+        mockMvc.perform(post("/api/directory")
+                        .cookie(myCookie)
+                        .param("path", "TestFolder/"))
+                .andExpect(status().isCreated())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.path").value(""))
+                .andExpect(jsonPath("$.name").value("TestFolder/"))
+                .andExpect(jsonPath("$.type").value("DIRECTORY"));
+
+        mockMvc.perform(post("/api/resource/move")
+                        .cookie(myCookie)
+                        .param("from", "TestFolder/")
+                        .param("to", "TestFolderRenamed/"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.path").value(""))
+                .andExpect(jsonPath("$.name").value("TestFolderRenamed/"))
+                .andExpect(jsonPath("$.type").value("DIRECTORY"));
+
+        mockMvc.perform(get("/api/directory")
+                        .cookie(myCookie)
+                        .param("path", "TestFolder/"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message")
+                        .value("Object not found: 'Root folder not exist: TestFolder/'"));
     }
 
     @Test
-    void RemoveNotFoundExceptionTest() throws Exception {
+    void RenameNotFoundExceptionTest() throws Exception {
 
         mockMvc.perform(post("/api/resource/move")
                         .cookie(myCookie)
@@ -224,11 +262,11 @@ public class ResourceControllerTest extends BaseIntegrationTest {
                         .param("to", "exampleExample.txt"))
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.message").value("Resource 'example.txt' is not found"));
+                .andExpect(jsonPath("$.message").value("Resource not found: 'example.txt'"));
     }
 
     @Test
-    void RemoveResourceAlreadyExistTest() throws Exception {
+    void RenameResourceAlreadyExistTest() throws Exception {
         MockMultipartFile mockFile = new MockMultipartFile(
                 "object",
                 "example.txt",
@@ -246,6 +284,6 @@ public class ResourceControllerTest extends BaseIntegrationTest {
                         .param("from", "example.txt")
                         .param("to", "example.txt"))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.message").value("Resource 'example.txt' already exist"));
+                .andExpect(jsonPath("$.message").value("Resource already exist: 'example.txt'"));
     }
 }
