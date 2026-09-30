@@ -74,6 +74,9 @@ public class MinIOService {
 
     public ResourceResponseDto createNewFolder(RequestDto requestDto) {
         FolderDto folderDto = pathCreator.createFolderDto(requestDto);
+        if (!folderDto.name().endsWith("/")) {
+            throw new ValidateException("Folder name must end with '/'");
+        }
 
         if (!objectAlreadyExist(requestDto.bucketName(), requestDto.rootPath(), folderDto.pathWithoutName())) {
             throw new ObjectNotExistException("Root folder not exist: " + folderDto.pathWithoutName());

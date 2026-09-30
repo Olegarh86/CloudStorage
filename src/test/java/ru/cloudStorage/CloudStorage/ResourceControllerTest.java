@@ -189,7 +189,7 @@ public class ResourceControllerTest extends BaseIntegrationTest {
     }
 
     @Test
-    void RenameResourceTest() throws Exception {
+    void SuccessRenameResourceTest() throws Exception {
         MockMultipartFile mockFile = new MockMultipartFile(
                 "object",
                 "example.txt",
@@ -273,17 +273,38 @@ public class ResourceControllerTest extends BaseIntegrationTest {
                 MediaType.TEXT_PLAIN_VALUE,
                 "This text is written as an example".getBytes()
         );
+        MockMultipartFile mockFile2 = new MockMultipartFile(
+                "object",
+                "example2.txt",
+                MediaType.TEXT_PLAIN_VALUE,
+                "This text is written as an example".getBytes()
+        );
         mockMvc.perform(multipart("/api/resource")
                 .cookie(myCookie)
                 .contentType(MediaType.MULTIPART_FORM_DATA)
                 .file(mockFile)
                 .param("path", ""));
+        mockMvc.perform(multipart("/api/resource")
+                .cookie(myCookie)
+                .contentType(MediaType.MULTIPART_FORM_DATA)
+                .file(mockFile2)
+                .param("path", ""));
 
         mockMvc.perform(post("/api/resource/move")
                         .cookie(myCookie)
                         .param("from", "example.txt")
-                        .param("to", "example.txt"))
+                        .param("to", "example2.txt"))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.message").value("Resource already exist: 'example.txt'"));
+                .andExpect(jsonPath("$.message").value("Resource already exist: 'example2.txt'"));
+
+        mockMvc.perform(get("/api/resource")
+                        .cookie(myCookie)
+                        .param("path", "example2.txt"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.path").value(""))
+                .andExpect(jsonPath("$.name").value("example2.txt"))
+                .andExpect(jsonPath("$.size").value(34))
+                .andExpect(jsonPath("$.type").value("FILE"));
     }
 }

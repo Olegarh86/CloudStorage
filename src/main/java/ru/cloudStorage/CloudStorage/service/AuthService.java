@@ -3,6 +3,7 @@ package ru.cloudStorage.CloudStorage.service;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -11,8 +12,8 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.cloudStorage.CloudStorage.exception.AlreadyExistException;
 import ru.cloudStorage.CloudStorage.dto.AuthRequest;
+import ru.cloudStorage.CloudStorage.exception.AlreadyExistException;
 import ru.cloudStorage.CloudStorage.model.User;
 import ru.cloudStorage.CloudStorage.repository.UserRepository;
 
@@ -25,20 +26,22 @@ public class AuthService {
     private final UserRepository userRepository;
 
     @Autowired
-    public AuthService(UserRepository userRepository,  PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
     }
 
     @Transactional
-    public User createNewUser(AuthRequest authRequest){
-        if (userRepository.findByUserName(authRequest.username()).isPresent()) {
+    public User createNewUser(AuthRequest authRequest) {
+        String encodedPassword = passwordEncoder.encode(authRequest.password());
+        User saved;
+        try {
+            saved = userRepository.save(new User(authRequest.username(), encodedPassword));
+        } catch (DataIntegrityViolationException e) {
             throw new AlreadyExistException("User with name: '" + authRequest.username() + "' already exist, change another");
         }
-        String encodedPassword = passwordEncoder.encode(authRequest.password());
-        User user = new User(authRequest.username(), encodedPassword);
-        return userRepository.save(user);
+        return saved;
     }
 
     public void login(AuthRequest authRequest, HttpServletRequest request) {
@@ -54,6 +57,6 @@ public class AuthService {
 
     public User findUserByUserName(String username) {
         return userRepository.findByUserName(username).orElseThrow(() -> new UsernameNotFoundException("User not " +
-                                                                                                        "found"));
+                                                                                                       "found"));
     }
 }
