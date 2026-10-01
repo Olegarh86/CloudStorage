@@ -10,12 +10,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.unit.DataSize;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 import ru.cloudStorage.CloudStorage.dto.*;
 import ru.cloudStorage.CloudStorage.exception.*;
-import ru.cloudStorage.CloudStorage.exception.ObjectStreamException;
 import ru.cloudStorage.CloudStorage.util.PathCreator;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -74,6 +77,7 @@ public class MinIOService {
 
     public ResourceResponseDto createNewFolder(RequestDto requestDto) {
         FolderDto folderDto = pathCreator.createFolderDto(requestDto);
+
         if (!folderDto.name().endsWith("/")) {
             throw new ValidateException("Folder name must end with '/'");
         }
@@ -96,8 +100,8 @@ public class MinIOService {
 
         StatObjectResponse objectStat =
                 getStatObjectIfExist(requestDto.bucketName(), requestDto.rootPath(), requestDto.decodedPath());
-
         ResourceResponseDto result;
+
         if (objectStat.size() > 0) {
             result = new ResourceResponseDto(path, name, objectStat.size());
         } else {
@@ -107,7 +111,6 @@ public class MinIOService {
     }
 
     public void delete(RequestDto requestDto) {
-
         if (objectAlreadyExist(requestDto.bucketName(), requestDto.rootPath(), requestDto.decodedPath())) {
             Iterable<Result<Item>> deletedObjects = getListObjects(
                     requestDto.bucketName(), requestDto.rootPath() + requestDto.decodedPath(), true);
@@ -119,7 +122,6 @@ public class MinIOService {
     }
 
     public List<ResourceResponseDto> upload(RequestDto requestDto, MultipartFile[] files) {
-
         if (!objectAlreadyExist(requestDto.bucketName(), requestDto.rootPath(), requestDto.decodedPath())) {
             throw new NotFoundException("Resource not found: " + requestDto.decodedPath());
         }
@@ -158,44 +160,45 @@ public class MinIOService {
         return result;
     }
 
-    public InputStream download(RequestDto requestDto) {
-
+    public StreamingResponseBody download(RequestDto requestDto) {
         if (!objectAlreadyExist(requestDto.bucketName(), requestDto.rootPath(), requestDto.decodedPath())) {
             throw new ObjectNotExistException("Object not exist: " + requestDto.decodedPath());
         }
         String fullPath = requestDto.rootPath() + requestDto.decodedPath();
 
         if (requestDto.decodedPath().endsWith("/")) {
-            try {
-                PipedInputStream pis = new PipedInputStream();
-                PipedOutputStream pos = new PipedOutputStream(pis);
+            return outputStream -> {
+                try (ZipOutputStream zos = new ZipOutputStream(outputStream, StandardCharsets.UTF_8)) {
+                    Iterable<Result<Item>> listObjects = getListObjects(requestDto.bucketName(), fullPath, true);
+                    byte[] buffer = new byte[32768];
 
-                new Thread(() -> {
-                    try (ZipOutputStream zos = new ZipOutputStream(pos)) {
-                        Iterable<Result<Item>> listObjects = getListObjects(requestDto.bucketName(), fullPath, true);
+                    for (Result<Item> object : listObjects) {
 
-                        for (Result<Item> object : listObjects) {
-
-                            if (!object.get().isDir()) {
-                                String name = object.get().objectName();
-                                zos.putNextEntry(new ZipEntry(name.substring(fullPath.length())));
-                                try (InputStream is = getObjectStream(requestDto.bucketName(), name)) {
-                                    is.transferTo(zos);
+                        if (!object.get().isDir()) {
+                            String name = object.get().objectName();
+                            zos.putNextEntry(new ZipEntry(name.substring(fullPath.length())));
+                            try (InputStream is = getObjectStream(requestDto.bucketName(), name)) {
+                                int bytesRead;
+                                while ((bytesRead = is.read(buffer)) != -1) {
+                                    zos.write(buffer, 0, bytesRead);
                                 }
-                                zos.closeEntry();
                             }
+                            zos.closeEntry();
                         }
-                        zos.finish();
-                    } catch (Exception e) {
-                        throw new ObjectStreamException("Error while creating ZipOutputStream ", e);
                     }
-                }).start();
-                return pis;
-            } catch (IOException e) {
-                throw new ObjectStreamException("Error while creating PipedInputStream ", e);
-            }
+                    zos.finish();
+                } catch (Exception e) {
+                    throw new ObjectStreamException("Error while creating ZipOutputStream ", e);
+                }
+            };
         } else {
-            return getObjectStream(requestDto.bucketName(), fullPath);
+            return outputStream -> {
+                try (InputStream is = getObjectStream(requestDto.bucketName(), fullPath)) {
+                    is.transferTo(outputStream);
+                }  catch (Exception e) {
+                    throw new ObjectStreamException("Error while creating InputStream ", e);
+                }
+            };
         }
     }
 

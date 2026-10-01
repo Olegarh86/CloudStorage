@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +13,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 import ru.cloudStorage.CloudStorage.dto.RenameRequestDto;
 import ru.cloudStorage.CloudStorage.dto.RequestDto;
 import ru.cloudStorage.CloudStorage.dto.ResourceResponseDto;
@@ -103,11 +105,11 @@ public class ResourceController {
     @ApiResponse(responseCode = "401", description = "User is not authorized")
     @ApiResponse(responseCode = "404", description = "Resource not found")
     @ApiResponse(responseCode = "500", description = "Unknown error")
-    public ResponseEntity<InputStreamResource> downloadObject(@AuthenticationPrincipal UserDetails userDetails,
+    public ResponseEntity<StreamingResponseBody> downloadObject(@AuthenticationPrincipal UserDetails userDetails,
                                                               @Parameter(description = "Full path to the resource")
                                                               @RequestParam("path") String path) {
         RequestDto dto = pathCreator.createRequestDto(userDetails.getUsername(), path);
-        InputStreamResource resource = new InputStreamResource(minioService.download(dto));
+        StreamingResponseBody resource = minioService.download(dto);
 
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_OCTET_STREAM).body(resource);
     }
