@@ -3,8 +3,6 @@ package ru.cloudStorage.CloudStorage;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.MinIOContainer;
 import org.testcontainers.postgresql.PostgreSQLContainer;
@@ -14,11 +12,15 @@ import org.testcontainers.utility.DockerImageName;
 class TestcontainersConfiguration {
 
     private static final MinIOContainer minioContainer = new MinIOContainer(
-            DockerImageName.parse("olegarholeg/minio:latest").asCompatibleSubstituteFor("minio/minio")
+            DockerImageName.parse("olegarholeg/minio:latest")
+                    .asCompatibleSubstituteFor("minio/minio")
     );
 
     static {
         minioContainer.start();
+        System.setProperty("minio.endpoint", minioContainer.getS3URL());
+        System.setProperty("minio.accessKey", minioContainer.getUserName());
+        System.setProperty("minio.secretKey", minioContainer.getPassword());
     }
 
     @Bean
@@ -31,18 +33,12 @@ class TestcontainersConfiguration {
     @ServiceConnection(name = "redis")
     @SuppressWarnings("resource")
     GenericContainer<?> redisContainer() {
-        return new GenericContainer<>(DockerImageName.parse("redis:7-alpine")).withExposedPorts(6379);
+        return new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
+                .withExposedPorts(6379);
     }
 
     @Bean
     MinIOContainer minio() {
         return minioContainer;
-    }
-
-    @DynamicPropertySource
-    static void configureMinioProperties(DynamicPropertyRegistry registry) {
-        registry.add("minio.endpoint", minioContainer::getS3URL);
-        registry.add("minio.accessKey", minioContainer::getUserName);
-        registry.add("minio.secretKey", minioContainer::getPassword);
     }
 }
