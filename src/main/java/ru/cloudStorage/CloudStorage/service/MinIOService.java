@@ -7,17 +7,17 @@ import io.minio.messages.Item;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.unit.DataSize;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 import ru.cloudStorage.CloudStorage.dto.*;
 import ru.cloudStorage.CloudStorage.exception.*;
+import ru.cloudStorage.CloudStorage.exception.ObjectStreamException;
 import ru.cloudStorage.CloudStorage.util.PathCreator;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -121,7 +121,7 @@ public class MinIOService {
         }
     }
 
-    public List<ResourceResponseDto> upload(RequestDto requestDto, MultipartFile[] files) {
+    public List<ResourceResponseDto> upload(RequestDto requestDto, List<MultipartFile> files) {
         if (!objectAlreadyExist(requestDto.bucketName(), requestDto.rootPath(), requestDto.decodedPath())) {
             throw new NotFoundException("Resource not found: " + requestDto.decodedPath());
         }
@@ -160,45 +160,53 @@ public class MinIOService {
         return result;
     }
 
-    public StreamingResponseBody download(RequestDto requestDto) {
+    public InputStreamResource download(RequestDto requestDto) {
         if (!objectAlreadyExist(requestDto.bucketName(), requestDto.rootPath(), requestDto.decodedPath())) {
             throw new ObjectNotExistException("Object not exist: " + requestDto.decodedPath());
         }
         String fullPath = requestDto.rootPath() + requestDto.decodedPath();
 
-        if (requestDto.decodedPath().endsWith("/")) {
-            return outputStream -> {
-                try (ZipOutputStream zos = new ZipOutputStream(outputStream, StandardCharsets.UTF_8)) {
-                    Iterable<Result<Item>> listObjects = getListObjects(requestDto.bucketName(), fullPath, true);
-                    byte[] buffer = new byte[32768];
+        try {
+            PipedInputStream pipedInputStream = new PipedInputStream(32768);
+            PipedOutputStream pipedOutputStream = new PipedOutputStream(pipedInputStream);
 
-                    for (Result<Item> object : listObjects) {
+            new Thread(() -> {
+                try (pipedOutputStream) {
 
-                        if (!object.get().isDir()) {
-                            String name = object.get().objectName();
-                            zos.putNextEntry(new ZipEntry(name.substring(fullPath.length())));
-                            try (InputStream is = getObjectStream(requestDto.bucketName(), name)) {
-                                int bytesRead;
-                                while ((bytesRead = is.read(buffer)) != -1) {
-                                    zos.write(buffer, 0, bytesRead);
+                    if (requestDto.decodedPath().endsWith("/")) {
+                        try (ZipOutputStream zos = new ZipOutputStream(pipedOutputStream, StandardCharsets.UTF_8)) {
+                            Iterable<Result<Item>> listObjects = getListObjects(requestDto.bucketName(), fullPath, true);
+                            byte[] buffer = new byte[32768];
+
+                            for (Result<Item> object : listObjects) {
+
+                                if (!object.get().isDir()) {
+                                    String name = object.get().objectName();
+                                    zos.putNextEntry(new ZipEntry(name.substring(fullPath.length())));
+                                    try (InputStream is = getObjectStream(requestDto.bucketName(), name)) {
+                                        int bytesRead;
+
+                                        while ((bytesRead = is.read(buffer)) != -1) {
+                                            zos.write(buffer, 0, bytesRead);
+                                        }
+                                    }
+                                    zos.closeEntry();
                                 }
                             }
-                            zos.closeEntry();
+                            zos.finish();
+                        }
+                    } else {
+                        try (InputStream is = getObjectStream(requestDto.bucketName(), fullPath)) {
+                            is.transferTo(pipedOutputStream);
                         }
                     }
-                    zos.finish();
                 } catch (Exception e) {
-                    throw new ObjectStreamException("Error while creating ZipOutputStream ", e);
+                    throw new ObjectStreamException("Error while streaming data from MinIO", e);
                 }
-            };
-        } else {
-            return outputStream -> {
-                try (InputStream is = getObjectStream(requestDto.bucketName(), fullPath)) {
-                    is.transferTo(outputStream);
-                }  catch (Exception e) {
-                    throw new ObjectStreamException("Error while creating InputStream ", e);
-                }
-            };
+            }).start();
+            return new InputStreamResource(pipedInputStream);
+        } catch (IOException e) {
+            throw new ObjectStreamException("Failed to initialize piped streams", e);
         }
     }
 

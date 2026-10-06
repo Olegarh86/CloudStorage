@@ -1,0 +1,585 @@
+openapi: 3.1.0
+info:
+  title: Cloud storage API
+  description: Documentation for the Cloud File Storage app
+  contact:
+    email: malegik86@mail.ru
+  version: "1.0"
+servers:
+- url: http://localhost:8090
+  description: Generated server url
+tags:
+- name: Authentication
+  description: Methods for new user registration and authentication
+- name: User
+  description: Information about authenticated user
+- name: Resources
+  description: |
+    Methods for working with resources. For all requests below, the path parameter
+     is the full path to the resource in url-encoded format. The folder path must
+      end with /. This is necessary to distinguish between a folder and a file with
+       the same name that may coexist together in the same root directory
+- name: Folders
+  description: Methods for working with folders
+paths:
+  /api/resource:
+    get:
+      tags:
+      - Resources
+      summary: Getting information about a resource
+      description: Returned information about the resource
+      operationId: getObject
+      parameters:
+      - name: path
+        in: query
+        description: Full path to the resource
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Information about the resource
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResourceResponseDto"
+        "400":
+          description: Invalid or missing path
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: User is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Unknown error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      tags:
+      - Resources
+      summary: Upload
+      description: |
+        GET parameter path - the path to the folder into which we download the resource(s).
+        The request body contains data from file input in MultipartFile format. If a subdirectory is
+        specified in the file name (for example, upload_folder/test.txt), then when uploading to
+        storage_folder/ such a directory will be created. As a result, the file after uploading will be
+        located in storage_folder/upload_folder/test.txt. This allows you to download files, folders and
+        recursively nested subfolders in a single request.
+      operationId: uploadObject
+      parameters:
+      - name: path
+        in: query
+        description: Full path to the resource
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                object:
+                  type: array
+                  description: File input in MultipartFile format
+                  items:
+                    type: string
+                    format: binary
+              required:
+              - object
+      responses:
+        "201":
+          description: Collection of downloaded resources
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ResourceResponseDto"
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: User is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: The file already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Unknown error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      tags:
+      - Resources
+      summary: Deleting a resource
+      description: Accepts the path to the resource to be deleted
+      operationId: deleteObject
+      parameters:
+      - name: path
+        in: query
+        description: Full path to the resource
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: Without a body
+        "400":
+          description: Invalid or missing path
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: User is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Unknown error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/resource/move:
+    post:
+      tags:
+      - Resources
+      summary: Renaming/moving a resource
+      description: GET parameters - old and new full paths to the resource in URL-encoded
+        format
+      operationId: moveOrRenameObject
+      parameters:
+      - name: from
+        in: query
+        description: Old path to the resource
+        required: true
+        schema:
+          type: string
+      - name: to
+        in: query
+        description: New path to the resource
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Information about the moved/renamed resource
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResourceResponseDto"
+        "400":
+          description: Invalid or missing path
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: User is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: The resource lying on the path to already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Unknown error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/directory:
+    get:
+      tags:
+      - Folders
+      summary: Getting information about the contents of a folder
+      description: Returned collection of resources located in a folder (not recursive)
+      operationId: getDirectory
+      parameters:
+      - name: path
+        in: query
+        description: Full path to the resource
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: A collection of resources located in a folder (not recursive)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ResourceResponseDto"
+        "400":
+          description: Invalid or missing path
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: User is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: The folder not exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Unknown error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      tags:
+      - Folders
+      summary: Create new empty folder
+      description: Returned resource of the created folder
+      operationId: postDirectory
+      parameters:
+      - name: path
+        in: query
+        description: Full path to the resource
+        required: true
+        schema:
+          type: string
+      responses:
+        "201":
+          description: Resource of the created folder
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResourceResponseDto"
+        "400":
+          description: Invalid or missing path
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: User is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: The parent folder not exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Unknown error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/auth/sign-up:
+    post:
+      tags:
+      - Authentication
+      summary: Registration new user
+      description: "Accepts username and password, hashes the password and stores\
+        \ the user in the DB. Create session and cookie"
+      operationId: createNewUser
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthRequest"
+        required: true
+      responses:
+        "201":
+          description: User successfully created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Validation errors
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Username is busy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Unknown error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/auth/sign-in:
+    post:
+      tags:
+      - Authentication
+      summary: Authenticates the user
+      description: "Accepts username and password, checks the presence of the user\
+        \ in the database. If present, creates a session and cookie"
+      operationId: authenticate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthRequest"
+        required: true
+      responses:
+        "200":
+          description: Successful authentication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Validation errors
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: "Incorrect data (there is no such user, or the password is\
+            \ incorrect"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Unknown error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/user/me:
+    get:
+      tags:
+      - User
+      summary: Getting information about authenticated user
+      description: Returned username
+      operationId: getUsername
+      responses:
+        "200":
+          description: Username
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: User is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Unknown error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/resource/search:
+    get:
+      tags:
+      - Resources
+      summary: Search
+      description: GET parameter query - search query in URL-encoded format
+      operationId: searchObject
+      parameters:
+      - name: query
+        in: query
+        description: Search query
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Collection of found resources
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ResourceResponseDto"
+        "400":
+          description: Invalid or missing search query
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: User is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Unknown error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api/resource/download:
+    get:
+      tags:
+      - Resources
+      summary: Downloading a resource
+      description: The folder is downloaded as a zip archive of its contents
+      operationId: downloadObject
+      parameters:
+      - name: path
+        in: query
+        description: Full path to the resource
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: "Binary content of a file with Content-Type: application/octet-stream"
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "400":
+          description: Invalid or missing path
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: User is not authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Unknown error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+components:
+  schemas:
+    ResourceResponseDto:
+      type: object
+      description: Object information
+      properties:
+        path:
+          type: string
+          description: Path to object
+          example: folder1/folder2/
+        name:
+          type: string
+          description: Object name
+          example: file.txt
+        size:
+          type: integer
+          format: int64
+          description: Object size (only for ResourceType = FILE)
+          example: 123
+        type:
+          type: string
+          description: Object type (DIRECTORY or FILE)
+          enum:
+          - DIRECTORY
+          - FILE
+          example: FILE
+      required:
+      - name
+      - path
+      - type
+    AuthRequest:
+      type: object
+      description: Registration and authentication data
+      properties:
+        username:
+          type: string
+          description: Unique username
+          example: Junior
+          maxLength: 20
+          minLength: 5
+          pattern: "^[a-zA-Z0-9]+[a-zA-Z_0-9]*[a-zA-Z0-9]+$"
+        password:
+          type: string
+          description: User password
+          example: Junior123
+          maxLength: 20
+          minLength: 5
+          pattern: "^[a-zA-Z0-9!@#$%^&*(),.?\\\":{}|<>[\\\\]/`~+=-_';]*$"
+      required:
+      - password
+      - username
+    AuthResponse:
+      type: object
+      description: Returns the name of the authenticated user
+      properties:
+        username:
+          type: string
+          description: Authenticated user name
+          example: Junior
+      required:
+      - username
+    ErrorResponse:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: Error detail message

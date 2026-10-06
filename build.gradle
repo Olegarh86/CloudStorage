@@ -3,6 +3,7 @@ plugins {
 	id 'org.springframework.boot' version '4.0.8'
 	id 'io.spring.dependency-management' version '1.1.7'
 	id 'jacoco'
+	id 'org.openapi.generator' version '7.25.0'
 }
 
 group = 'ru.cloudStorage'
@@ -40,7 +41,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.2'
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
-	implementation("io.minio:minio:8.6.0")
+	implementation 'jakarta.validation:jakarta.validation-api'
+	implementation 'io.minio:minio:8.6.0'
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
@@ -52,7 +54,7 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
 	testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
 	testImplementation 'org.testcontainers:testcontainers-postgresql'
-	testImplementation("org.testcontainers:minio:1.21.4")
+	testImplementation 'org.testcontainers:minio:1.21.4'
 	testCompileOnly 'org.projectlombok:lombok'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	testAnnotationProcessor 'org.projectlombok:lombok'
@@ -62,4 +64,38 @@ tasks.named('test') {
 	useJUnitPlatform()
 }
 
+openApiGenerate {
+	generatorName = "spring"
+	inputSpec = "$projectDir/src/main/resources/api-docs.yaml"
+	outputDir = layout.buildDirectory.dir("generated/openapi").get().asFile.path
+	apiPackage = "ru.cloudStorage.CloudStorage.api"
+	modelPackage = "ru.cloudStorage.api.stub"
+
+	configOptions = [
+			interfaceOnly: "true",
+			useSpringBoot4: "true",
+			useJackson3: "true",
+			skipDefaultInterface: "true",
+			useTags: "true",
+			openApiNullable: "false"
+	]
+
+	importMappings = [
+			"AuthRequest": "ru.cloudStorage.CloudStorage.dto.AuthRequest",
+			"AuthResponse": "ru.cloudStorage.CloudStorage.dto.AuthResponse",
+			"ResourceResponseDto": "ru.cloudStorage.CloudStorage.dto.ResourceResponseDto",
+			"ErrorResponse": "ru.cloudStorage.CloudStorage.dto.ErrorResponse"
+	]
+}
+
+
+sourceSets {
+	main {
+		java {
+			srcDirs += layout.buildDirectory.dir("generated/openapi/src/main/java").get().asFile.path
+		}
+	}
+}
+
 tasks.bootRun.dependsOn(tasks.test)
+compileJava.dependsOn tasks.openApiGenerate

@@ -1,10 +1,11 @@
+name: "cloud-storage-dev"
+
 services:
   db_storage:
     image: 'olegarholeg/postgres:16-alpine'
-    container_name: "db_storage"
     restart: "always"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata_dev:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
@@ -18,7 +19,6 @@ services:
       retries: 5
   redis_storage:
     image: 'olegarholeg/redis:7-alpine'
-    container_name: "redis_storage"
     restart: "always"
     ports:
       - '6379:6379'
@@ -29,22 +29,23 @@ services:
       retries: 5
   minio:
     image: "olegarholeg/minio:latest"
-    container_name: minio
     restart: always
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "9010:9000"
+      - "9011:9001"
     volumes:
-      - minio_data:/data
-    env_file:
-      - .env
+      - minio_data_dev:/data
     environment:
       - MINIO_ROOT_USER=minioadmin
       - MINIO_ROOT_PASSWORD=minioadmin
+      - MINIO_ENDPOINT=http://localhost:9010
+      - MINIO_BUCKET_NAME=user-files
     command: server /data --address ":9000" --console-address ":9001"
-networks:
-  storage-network:
-    driver: bridge
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 3s
+      timeout: 3s
+      retries: 5
 volumes:
-  pgdata:
-  minio_data:
+  pgdata_dev:
+  minio_data_dev:

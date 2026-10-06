@@ -8,6 +8,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -16,6 +17,8 @@ import ru.cloudStorage.CloudStorage.dto.AuthRequest;
 import ru.cloudStorage.CloudStorage.exception.AlreadyExistException;
 import ru.cloudStorage.CloudStorage.model.User;
 import ru.cloudStorage.CloudStorage.repository.UserRepository;
+
+import java.util.Objects;
 
 @Service
 @Transactional(readOnly = true)
@@ -53,6 +56,15 @@ public class AuthService {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         HttpSession session = request.getSession(true);
         session.setAttribute("SPRING_SECURITY_CONTEXT", SecurityContextHolder.getContext());
+    }
+
+    public String getUsername() {
+        UserDetails userDetails = (UserDetails) Objects.requireNonNull(SecurityContextHolder
+                        .getContext()
+                        .getAuthentication())
+                .getPrincipal();
+        assert userDetails != null;
+        return userDetails.getUsername();
     }
 
     public User findUserByUserName(String username) {

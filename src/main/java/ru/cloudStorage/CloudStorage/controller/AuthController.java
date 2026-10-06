@@ -1,14 +1,11 @@
 package ru.cloudStorage.CloudStorage.controller;
 
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import ru.cloudStorage.CloudStorage.api.AuthenticationApi;
 import ru.cloudStorage.CloudStorage.dto.AuthRequest;
 import ru.cloudStorage.CloudStorage.dto.AuthResponse;
 import ru.cloudStorage.CloudStorage.model.User;
@@ -16,45 +13,32 @@ import ru.cloudStorage.CloudStorage.service.AuthService;
 import ru.cloudStorage.CloudStorage.service.MinIOService;
 
 @RestController
-@RequestMapping("/api/auth")
-@Tag(name = "Authentication", description = "Methods for new user registration and authentication")
-public class AuthController {
+public class AuthController implements AuthenticationApi {
 
+    private final HttpServletRequest request;
     private final AuthService authService;
     private final MinIOService minioService;
 
     @Autowired
-    public AuthController(AuthService authService, MinIOService minioService) {
+    public AuthController(HttpServletRequest request, AuthService authService, MinIOService minioService) {
+        this.request = request;
         this.authService = authService;
         this.minioService = minioService;
     }
 
-    @PostMapping("/sign-up")
-    @Operation(summary = "Registration new user",
-            description = "Accepts username and password, hashes the password and stores the user in the DB. Create " +
-                          "session and cookie")
-    @ApiResponse(responseCode = "201", description = "User successfully created")
-    @ApiResponse(responseCode = "400", description = "Validation errors")
-    @ApiResponse(responseCode = "409", description = "Username is busy")
-    @ApiResponse(responseCode = "500", description = "Unknown error")
-    public ResponseEntity<AuthResponse> createNewUser(@RequestBody @Valid AuthRequest authRequest, HttpServletRequest request) {
+    @Override
+    public ResponseEntity<AuthResponse> authenticate(AuthRequest authRequest) {
+        authService.login(authRequest, request);
+        return ResponseEntity.status(HttpStatus.OK)
+                .header("Content-Type", "application/json")
+                .body(new AuthResponse(authRequest.username()));
+    }
+
+    @Override
+    public ResponseEntity<AuthResponse> createNewUser(AuthRequest authRequest) {
         User newUser = authService.createNewUser(authRequest);
         authService.login(authRequest, request);
         minioService.createNewRootFolder(newUser.getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(new AuthResponse(newUser.getUserName()));
-    }
-
-    @PostMapping("/sign-in")
-    @Operation(summary = "Authenticates the user",
-            description = "Accepts username and password, checks the presence of the user in the database. " +
-                          "If present, creates a session and cookie")
-    @ApiResponse(responseCode = "200", description = "Successful authentication")
-    @ApiResponse(responseCode = "400", description = "Validation errors")
-    @ApiResponse(responseCode = "401", description = "Incorrect data (there is no such user, or the password is " +
-                                                     "incorrect")
-    @ApiResponse(responseCode = "500", description = "Unknown error")
-    public ResponseEntity<AuthResponse> auth(@RequestBody @Valid AuthRequest authRequest, HttpServletRequest request){
-        authService.login(authRequest, request);
-        return ResponseEntity.status(HttpStatus.OK).body(new AuthResponse(authRequest.username()));
     }
 }

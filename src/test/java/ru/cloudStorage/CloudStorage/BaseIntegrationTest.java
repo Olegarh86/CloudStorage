@@ -29,12 +29,8 @@ public abstract class BaseIntegrationTest {
     protected UserRepository userRepository;
     @Autowired
     protected MockMvc mockMvc;
-
     @Autowired
     protected MinioClient minioClient;
-
-    @Autowired
-    protected MinIOContainer minioContainer;
 
     @AfterEach
     public void clearMinio() {

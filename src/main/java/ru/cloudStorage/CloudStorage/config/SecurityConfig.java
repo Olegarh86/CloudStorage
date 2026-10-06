@@ -16,7 +16,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
-import ru.cloudStorage.CloudStorage.dto.ErrorMessage;
+import ru.cloudStorage.CloudStorage.dto.ErrorResponse;
 
 
 @Configuration
@@ -53,9 +53,9 @@ public class SecurityConfig {
                                         requestURI.contains("swagger")) {
                                         response.setContentType("application/json;charset=UTF-8");
                                         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                                        ErrorMessage errorMessage = new ErrorMessage("User is not authorized");
+                                        ErrorResponse errorResponse = new ErrorResponse("User is not authorized");
                                         ObjectMapper mapper = new ObjectMapper();
-                                        String jsonResponse = mapper.writeValueAsString(errorMessage);
+                                        String jsonResponse = mapper.writeValueAsString(errorResponse);
                                         response.getWriter().write(jsonResponse);
                                     } else {
                                         response.sendRedirect(request.getContextPath() + "/login");

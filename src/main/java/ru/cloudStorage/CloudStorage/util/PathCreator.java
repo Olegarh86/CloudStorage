@@ -9,6 +9,7 @@ import ru.cloudStorage.CloudStorage.dto.RequestDto;
 import ru.cloudStorage.CloudStorage.exception.NotFoundException;
 import ru.cloudStorage.CloudStorage.exception.ValidateException;
 import ru.cloudStorage.CloudStorage.repository.UserRepository;
+import ru.cloudStorage.CloudStorage.service.AuthService;
 
 import java.net.URLDecoder;
 
@@ -19,16 +20,18 @@ public class PathCreator {
 
     private final MinioProperties minioProperties;
     private final UserRepository userRepository;
+    private final AuthService authService;
 
     @Autowired
-    public PathCreator(MinioProperties minioProperties, UserRepository userRepository) {
+    public PathCreator(MinioProperties minioProperties, UserRepository userRepository, AuthService authService) {
         this.minioProperties = minioProperties;
         this.userRepository = userRepository;
+        this.authService = authService;
     }
 
-    public RequestDto createRequestDto(String username, String queryPath) {
+    public RequestDto createRequestDto(String queryPath) {
         String bucketName = minioProperties.getBucketName();
-        String rootPath = getRootPath(username);
+        String rootPath = getRootPath(authService.getUsername());
         String decodedPath;
 
         if (queryPath.isBlank()) {
@@ -45,9 +48,9 @@ public class PathCreator {
         return new RequestDto(bucketName, rootPath, decodedPath);
     }
 
-    public RenameRequestDto createRequestRenameDto(String username, String from, String to) {
+    public RenameRequestDto createRequestRenameDto(String from, String to) {
         String bucketName = minioProperties.getBucketName();
-        String rootPath = getRootPath(username);
+        String rootPath = getRootPath(authService.getUsername());
         String decodedPathFrom = decodePath(from);
         validatePath(getObjectPath(decodedPathFrom));
         String decodedPathTo = decodePath(to);

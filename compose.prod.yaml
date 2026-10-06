@@ -1,3 +1,5 @@
+name: "cloud-storage-prod"
+
 services:
   nginx_storage:
     image: 'nginx:alpine'
