@@ -224,7 +224,7 @@ public class ResourceControllerTest extends BaseIntegrationTest {
                         .param("path", "example.txt"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message")
-                        .value("Object not found: 'Object not exist: example.txt'"));
+                        .value("Object not exist: example.txt"));
 
         mockMvc.perform(post("/api/directory")
                         .cookie(myCookie)
@@ -262,7 +262,7 @@ public class ResourceControllerTest extends BaseIntegrationTest {
                         .param("to", "exampleExample.txt"))
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.message").value("Resource not found: 'example.txt'"));
+                .andExpect(jsonPath("$.message").value("Object not exist: example.txt"));
     }
 
     @Test

@@ -71,7 +71,7 @@ public class DirectoryControllerTest extends BaseIntegrationTest{
                         .param("path", "TestFolder/"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message")
-                        .value("Folder with name 'TestFolder/' already exists"));
+                        .value("Object with name 'TestFolder/' already exists"));
     }
 
     @Test

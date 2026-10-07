@@ -1,17 +1,15 @@
 package ru.cloudStorage.CloudStorage.service;
 
 import io.minio.*;
+import io.minio.errors.ErrorResponseException;
 import io.minio.messages.DeleteError;
 import io.minio.messages.DeleteObject;
 import io.minio.messages.Item;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.stereotype.Service;
-import org.springframework.util.unit.DataSize;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 import ru.cloudStorage.CloudStorage.dto.*;
 import ru.cloudStorage.CloudStorage.exception.*;
 import ru.cloudStorage.CloudStorage.exception.ObjectStreamException;
@@ -22,6 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -29,8 +28,6 @@ import java.util.zip.ZipOutputStream;
 public class MinIOService {
     private final MinioClient minioClient;
     private final PathCreator pathCreator;
-    @Value("${spring.servlet.multipart.max-file-size:100MB}")
-    private DataSize maxFileSize;
 
     @Autowired
     public MinIOService(MinioClient minioClient, PathCreator pathCreator) {
@@ -40,7 +37,7 @@ public class MinIOService {
 
     public void createNewRootFolder(Long id) {
         RequestDto requestDto = pathCreator.createRootPath(id);
-        createFolder(requestDto.bucketName(), requestDto.rootPath());
+        createFolder(requestDto.bucketName(), requestDto.rootPath(), "");
     }
 
     public List<ResourceResponseDto> getAllObjects(RequestDto requestDto) {
@@ -85,11 +82,7 @@ public class MinIOService {
         if (!objectAlreadyExist(requestDto.bucketName(), requestDto.rootPath(), folderDto.pathWithoutName())) {
             throw new ObjectNotExistException("Root folder not exist: " + folderDto.pathWithoutName());
         }
-
-        if (objectAlreadyExist(requestDto.bucketName(), requestDto.rootPath(), requestDto.decodedPath())) {
-            throw new AlreadyExistException("Folder with name '" + requestDto.decodedPath() + "' already exists");
-        }
-        createFolder(folderDto.bucketName(), folderDto.fullPath());
+        createFolder(folderDto.bucketName(), folderDto.rootPath(), folderDto.pathWithoutName() + folderDto.name());
         return new ResourceResponseDto(folderDto.pathWithoutName(), folderDto.name());
     }
 
@@ -115,7 +108,7 @@ public class MinIOService {
             Iterable<Result<Item>> deletedObjects = getListObjects(
                     requestDto.bucketName(), requestDto.rootPath() + requestDto.decodedPath(), true);
 
-            removeObjects(requestDto.bucketName(), deletedObjects);
+            deleteObjects(requestDto.bucketName(), deletedObjects);
         } else {
             throw new ObjectNotExistException(requestDto.decodedPath());
         }
@@ -128,12 +121,8 @@ public class MinIOService {
         List<ResourceResponseDto> result = new ArrayList<>();
 
         for (MultipartFile file : files) {
-            long maxBytes = maxFileSize.toBytes();
             long objectSize = file.getSize();
 
-            if (objectSize > maxBytes) {
-                throw new FileTooLargeException("TooLarge.file");
-            }
             String path = requestDto.decodedPath();
             String objectName = file.getOriginalFilename();
 
@@ -149,11 +138,11 @@ public class MinIOService {
                     uploadObject(requestDto.bucketName(), requestDto.rootPath() + path + objectName,
                             new UploadDto(is, objectSize, -1, file.getContentType()));
                     result.add(new ResourceResponseDto(path, objectName, objectSize));
-                } catch (IOException e) {
+                } catch (Exception e) {
                     throw new UploadObjectException("Error loading file into MinIO: " + objectName, e);
                 }
             } else {
-                createFolder(requestDto.bucketName(), requestDto.rootPath() + path + objectName);
+                createFolder(requestDto.bucketName(), requestDto.rootPath(), path + objectName);
                 result.add(new ResourceResponseDto(path, objectName));
             }
         }
@@ -211,10 +200,6 @@ public class MinIOService {
     }
 
     public ResourceResponseDto rename(RenameRequestDto requestDto) {
-        if (!objectAlreadyExist(requestDto.bucketName(), requestDto.rootPath(), requestDto.decodedPathFrom())) {
-            throw new NotFoundException("Resource not found: '" + requestDto.decodedPathFrom() + "'");
-        }
-
         if (objectAlreadyExist(requestDto.bucketName(), requestDto.rootPath(), requestDto.decodedPathTo())) {
             throw new AlreadyExistException("Resource already exist: '" + requestDto.decodedPathTo() + "'");
         }
@@ -235,14 +220,12 @@ public class MinIOService {
                 RenameRequestDto newRequestDto = getRenameRequestDto(requestDto, oldNameWithFullPath);
 
                 if (oldNameWithFullPath.endsWith("/")) {
-                    createFolder(requestDto.bucketName(), requestDto.rootPath() + newRequestDto.decodedPathTo());
+                    createFolder(requestDto.bucketName(), requestDto.rootPath(), newRequestDto.decodedPathTo());
                     deleteObject(requestDto.bucketName(), requestDto.rootPath(), newRequestDto.decodedPathFrom());
                 } else {
                     renameObject(newRequestDto);
                 }
             }
-            createFolder(requestDto.bucketName(), requestDto.rootPath() + requestDto.decodedPathTo());
-            deleteObject(requestDto.bucketName(), requestDto.rootPath(), requestDto.decodedPathFrom());
             responseDto = new ResourceResponseDto(
                     pathCreator.getObjectPath(requestDto.decodedPathTo()),
                     pathCreator.getObjectName(requestDto.decodedPathTo()));
@@ -276,7 +259,7 @@ public class MinIOService {
             String fullPath = pathCreator.getObjectPath(objectNameWithFullPath);
             String name = pathCreator.getObjectName(objectNameWithFullPath);
 
-            if (name.toLowerCase().contains(requestDto.decodedPath().toLowerCase())) {
+            if (name.toLowerCase().contains(requestDto.decodedPath().toLowerCase()) && !fullPath.isBlank()) {
                 String path = fullPath.substring(requestDto.rootPath().length());
                 ResourceResponseDto responseDto;
 
@@ -317,8 +300,8 @@ public class MinIOService {
         int lastSlash = name.lastIndexOf("/");
         String folderName = name.substring(0, lastSlash);
 
-        if (!objectAlreadyExist(requestDto.bucketName(), requestDto.rootPath(), objectPath + folderName)) {
-            createFolder(requestDto.bucketName(), requestDto.rootPath() + objectPath + folderName + "/");
+        if (!objectAlreadyExist(requestDto.bucketName(), requestDto.rootPath(), objectPath + folderName + "/")) {
+            createFolder(requestDto.bucketName(), requestDto.rootPath(), objectPath + folderName + "/");
         }
 
         if (folderName.contains("/")) {
@@ -347,14 +330,18 @@ public class MinIOService {
         return new RenameRequestDto(requestDto.bucketName(), requestDto.rootPath(), oldNameWithPath, newNameWithPath);
     }
 
-    private void createFolder(String bucketName, String objectName) {
+    private void createFolder(String bucketName, String rootPath, String objectName) {
         try {
+            Map<String, String> headers = Map.of("If-None-Match", "*");
             minioClient.putObject(
                     PutObjectArgs.builder()
                             .bucket(bucketName)
-                            .object(objectName)
+                            .object(rootPath + objectName)
                             .stream(new ByteArrayInputStream(new byte[]{}), 0, -1)
+                            .headers(headers)
                             .build());
+        } catch (ErrorResponseException e) {
+            throw translateException(e, objectName);
         } catch (Exception e) {
             throw new CreateNewFolderException("Folder not created: " + objectName, e);
         }
@@ -367,18 +354,11 @@ public class MinIOService {
                             .bucket(bucketName)
                             .object(objectName)
                             .build());
+        } catch (ErrorResponseException e) {
+            throw translateException(e, objectName);
         } catch (Exception e) {
             throw new ObjectStreamException("Failed to get object stream: " + objectName, e);
         }
-    }
-
-    private Iterable<Result<Item>> getListObjects(String bucketName, String objectName, boolean recursive) {
-        return minioClient.listObjects(
-                ListObjectsArgs.builder()
-                        .bucket(bucketName)
-                        .prefix(objectName)
-                        .recursive(recursive)
-                        .build());
     }
 
     private StatObjectResponse getStatObjectIfExist(String bucketName, String rootPath, String objectName) {
@@ -388,20 +368,26 @@ public class MinIOService {
                             .bucket(bucketName)
                             .object(rootPath + objectName)
                             .build());
+        } catch (ErrorResponseException e) {
+            throw translateException(e, objectName);
         } catch (Exception e) {
-            throw new ObjectNotExistException("Object not exist: " + objectName, e);
+            throw new GetStatObjectException("Exception while getting stat object: " + objectName, e);
         }
     }
 
     private void uploadObject(String bucketName, String objectName, UploadDto uploadDto) {
         try {
+            Map<String, String> headers = Map.of("If-None-Match", "*");
             minioClient.putObject(
                     PutObjectArgs.builder()
                             .bucket(bucketName)
                             .object(objectName)
                             .stream(uploadDto.inputStream(), uploadDto.objectSize(), uploadDto.partSize())
                             .contentType(uploadDto.contentType())
+                            .headers(headers)
                             .build());
+        } catch (ErrorResponseException e) {
+            throw translateException(e, objectName);
         } catch (Exception e) {
             throw new UploadObjectException("Failed to load object: " + objectName, e);
         }
@@ -418,7 +404,8 @@ public class MinIOService {
                                     .object(rootPath + pathFrom)
                                     .build())
                             .build());
-
+        } catch (ErrorResponseException e) {
+            throw translateException(e, pathFrom);
         } catch (Exception e) {
             throw new CopyObjectException("Object not copied: " + pathFrom, e);
         }
@@ -431,12 +418,14 @@ public class MinIOService {
                             .bucket(bucketName)
                             .object(rootPath + pathFrom)
                             .build());
+        } catch (ErrorResponseException e) {
+            throw translateException(e, pathFrom);
         } catch (Exception e) {
             throw new RemoveObjectException("Object not deleted: " + pathFrom, e);
         }
     }
 
-    private void removeObjects(String bucketName, Iterable<Result<Item>> deletedObjects) {
+    private void deleteObjects(String bucketName, Iterable<Result<Item>> deletedObjects) {
         List<DeleteObject> objects = new LinkedList<>();
 
         for (Result<Item> result : deletedObjects) {
@@ -461,5 +450,25 @@ public class MinIOService {
                 throw new RemoveObjectException("Object not deleted", e);
             }
         }
+    }
+
+    private Iterable<Result<Item>> getListObjects(String bucketName, String objectName, boolean recursive) {
+        return minioClient.listObjects(
+                ListObjectsArgs.builder()
+                        .bucket(bucketName)
+                        .prefix(objectName)
+                        .recursive(recursive)
+                        .build());
+    }
+
+    private RuntimeException translateException(ErrorResponseException e, String objectName) {
+        String errorCode = e.errorResponse().code();
+        if ("NoSuchKey".equals(errorCode) || "NoSuchObject".equals(errorCode)) {
+            return new ObjectNotExistException("Object not exist: " + objectName, e);
+        }
+        if ("PreconditionFailed".equals(errorCode)) {
+            return new AlreadyExistException("Object with name '" + objectName + "' already exists");
+        }
+        return new MinIOException(objectName, e);
     }
 }

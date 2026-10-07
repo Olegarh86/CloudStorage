@@ -97,5 +97,4 @@ sourceSets {
 	}
 }
 
-tasks.bootRun.dependsOn(tasks.test)
 compileJava.dependsOn tasks.openApiGenerate
