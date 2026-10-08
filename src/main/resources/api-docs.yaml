@@ -6,36 +6,37 @@ info:
     email: malegik86@mail.ru
   version: "1.0"
 servers:
-- url: http://localhost:8090
-  description: Generated server url
+  - url: http://localhost:8090
+    description: Generated server url
 tags:
-- name: Authentication
-  description: Methods for new user registration and authentication
-- name: User
-  description: Information about authenticated user
-- name: Resources
-  description: |
-    Methods for working with resources. For all requests below, the path parameter
-     is the full path to the resource in url-encoded format. The folder path must
-      end with /. This is necessary to distinguish between a folder and a file with
-       the same name that may coexist together in the same root directory
-- name: Folders
-  description: Methods for working with folders
+  - name: Authentication
+    description: Methods for new user registration and authentication
+  - name: User
+    description: Information about authenticated user
+  - name: Resources
+    description: |
+      Methods for working with resources. For all requests below, the path parameter
+       is the full path to the resource in url-encoded format. The folder path must
+        end with /. This is necessary to distinguish between a folder and a file with
+         the same name that may coexist together in the same root directory
+  - name: Folders
+    description: Methods for working with folders
 paths:
   /api/resource:
     get:
       tags:
-      - Resources
+        - Resources
       summary: Getting information about a resource
       description: Returned information about the resource
       operationId: getObject
       parameters:
-      - name: path
-        in: query
-        description: Full path to the resource
-        required: true
-        schema:
-          type: string
+        - name: path
+          in: query
+          description: Full path to the resource
+          required: true
+          schema:
+            type: string
+            pattern: '^(?!/)(?!.*//)(?!.*\.\.)[a-zA-Z0-9_\s.%/-]*$'
       responses:
         "200":
           description: Information about the resource
@@ -69,7 +70,7 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
     post:
       tags:
-      - Resources
+        - Resources
       summary: Upload
       description: |
         GET parameter path - the path to the folder into which we download the resource(s).
@@ -80,12 +81,13 @@ paths:
         recursively nested subfolders in a single request.
       operationId: uploadObject
       parameters:
-      - name: path
-        in: query
-        description: Full path to the resource
-        required: true
-        schema:
-          type: string
+        - name: path
+          in: query
+          description: Full path to the resource
+          required: true
+          schema:
+            type: string
+            pattern: '^(?!/)(?!.*//)(?!.*\.\.)[a-zA-Z0-9_\s.%/-]*$'
       requestBody:
         content:
           multipart/form-data:
@@ -99,7 +101,7 @@ paths:
                     type: string
                     format: binary
               required:
-              - object
+                - object
       responses:
         "201":
           description: Collection of downloaded resources
@@ -135,17 +137,18 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
     delete:
       tags:
-      - Resources
+        - Resources
       summary: Deleting a resource
       description: Accepts the path to the resource to be deleted
       operationId: deleteObject
       parameters:
-      - name: path
-        in: query
-        description: Full path to the resource
-        required: true
-        schema:
-          type: string
+        - name: path
+          in: query
+          description: Full path to the resource
+          required: true
+          schema:
+            type: string
+            pattern: '^(?!/)(?!.*//)(?!.*\.\.)[a-zA-Z0-9_\s.%/-]*$'
       responses:
         "204":
           description: Without a body
@@ -176,24 +179,26 @@ paths:
   /api/resource/move:
     post:
       tags:
-      - Resources
+        - Resources
       summary: Renaming/moving a resource
       description: GET parameters - old and new full paths to the resource in URL-encoded
         format
       operationId: moveOrRenameObject
       parameters:
-      - name: from
-        in: query
-        description: Old path to the resource
-        required: true
-        schema:
-          type: string
-      - name: to
-        in: query
-        description: New path to the resource
-        required: true
-        schema:
-          type: string
+        - name: from
+          in: query
+          description: Old path to the resource
+          required: true
+          schema:
+            type: string
+            pattern: '^(?!/)(?!.*//)(?!.*\.\.)[a-zA-Z0-9_\s.%/-]*$'
+        - name: to
+          in: query
+          description: New path to the resource
+          required: true
+          schema:
+            type: string
+            pattern: '^(?!/)(?!.*//)(?!.*\.\.)[a-zA-Z0-9_\s.%/-]*$'
       responses:
         "200":
           description: Information about the moved/renamed resource
@@ -234,17 +239,18 @@ paths:
   /api/directory:
     get:
       tags:
-      - Folders
+        - Folders
       summary: Getting information about the contents of a folder
       description: Returned collection of resources located in a folder (not recursive)
       operationId: getDirectory
       parameters:
-      - name: path
-        in: query
-        description: Full path to the resource
-        required: true
-        schema:
-          type: string
+        - name: path
+          in: query
+          description: Full path to the resource
+          required: true
+          schema:
+            type: string
+            pattern: '^(?!/)(?!.*//)(?!.*\.\.)[a-zA-Z0-9_\s.%/-]*$'
       responses:
         "200":
           description: A collection of resources located in a folder (not recursive)
@@ -280,17 +286,18 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
     post:
       tags:
-      - Folders
+        - Folders
       summary: Create new empty folder
       description: Returned resource of the created folder
       operationId: postDirectory
       parameters:
-      - name: path
-        in: query
-        description: Full path to the resource
-        required: true
-        schema:
-          type: string
+        - name: path
+          in: query
+          description: Full path to the resource
+          required: true
+          schema:
+            type: string
+            pattern: '^(?!/)(?!.*//)(?!.*\.\.)[a-zA-Z0-9_\s.%/-]*$'
       responses:
         "201":
           description: Resource of the created folder
@@ -325,7 +332,7 @@ paths:
   /api/auth/sign-up:
     post:
       tags:
-      - Authentication
+        - Authentication
       summary: Registration new user
       description: "Accepts username and password, hashes the password and stores\
         \ the user in the DB. Create session and cookie"
@@ -364,7 +371,7 @@ paths:
   /api/auth/sign-in:
     post:
       tags:
-      - Authentication
+        - Authentication
       summary: Authenticates the user
       description: "Accepts username and password, checks the presence of the user\
         \ in the database. If present, creates a session and cookie"
@@ -404,7 +411,7 @@ paths:
   /api/user/me:
     get:
       tags:
-      - User
+        - User
       summary: Getting information about authenticated user
       description: Returned username
       operationId: getUsername
@@ -430,17 +437,18 @@ paths:
   /api/resource/search:
     get:
       tags:
-      - Resources
+        - Resources
       summary: Search
       description: GET parameter query - search query in URL-encoded format
       operationId: searchObject
       parameters:
-      - name: query
-        in: query
-        description: Search query
-        required: true
-        schema:
-          type: string
+        - name: query
+          in: query
+          description: Search query
+          required: true
+          schema:
+            type: string
+            pattern: '^(?!/)(?!.*//)(?!.*\.\.)[a-zA-Z0-9_\s.%/-]*$'
       responses:
         "200":
           description: Collection of found resources
@@ -471,17 +479,18 @@ paths:
   /api/resource/download:
     get:
       tags:
-      - Resources
+        - Resources
       summary: Downloading a resource
       description: The folder is downloaded as a zip archive of its contents
       operationId: downloadObject
       parameters:
-      - name: path
-        in: query
-        description: Full path to the resource
-        required: true
-        schema:
-          type: string
+        - name: path
+          in: query
+          description: Full path to the resource
+          required: true
+          schema:
+            type: string
+            pattern: '^(?!/)(?!.*//)(?!.*\.\.)[a-zA-Z0-9_\s.%/-]*$'
       responses:
         "200":
           description: "Binary content of a file with Content-Type: application/octet-stream"
@@ -537,13 +546,13 @@ components:
           type: string
           description: Object type (DIRECTORY or FILE)
           enum:
-          - DIRECTORY
-          - FILE
+            - DIRECTORY
+            - FILE
           example: FILE
       required:
-      - name
-      - path
-      - type
+        - name
+        - path
+        - type
     AuthRequest:
       type: object
       description: Registration and authentication data
@@ -563,8 +572,8 @@ components:
           minLength: 5
           pattern: "^[a-zA-Z0-9!@#$%^&*(),.?\\\":{}|<>[\\\\]/`~+=-_';]*$"
       required:
-      - password
-      - username
+        - password
+        - username
     AuthResponse:
       type: object
       description: Returns the name of the authenticated user
@@ -574,7 +583,7 @@ components:
           description: Authenticated user name
           example: Junior
       required:
-      - username
+        - username
     ErrorResponse:
       type: object
       required:

@@ -78,8 +78,8 @@ public class AuthIntegrationTest extends BaseIntegrationTest {
         String requestBody = mapper.writeValueAsString(authRequest);
 
         mockMvc.perform(post("/api/auth/sign-up")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(requestBody))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message")
                         .value("User with name: '" + name + "' already exist, change another"));
@@ -157,5 +157,13 @@ public class AuthIntegrationTest extends BaseIntegrationTest {
         Cookie emptyCookie = resultActions.getResponse().getCookie("SESSION");
         Assertions.assertNotNull(emptyCookie);
         assertEquals(0, emptyCookie.getMaxAge());
+    }
+
+    @Test
+    void notAuthorisedSignOutTest() throws Exception {
+        mockMvc.perform(post("/api/auth/sign-out"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(cookie().doesNotExist("SESSION"))
+                .andReturn();
     }
 }

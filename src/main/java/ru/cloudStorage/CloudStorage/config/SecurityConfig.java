@@ -14,7 +14,6 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
 import ru.cloudStorage.CloudStorage.dto.ErrorResponse;
 
@@ -39,8 +38,10 @@ public class SecurityConfig {
                                         "/login",
                                         "/index.html",
                                         "/registration",
-                                        "/api/auth/**",
+                                        "/api/auth/sign-in",
+                                        "/api/auth/sign-up",
                                         "/error").permitAll()
+                                .requestMatchers("/api/auth/sign-out").authenticated()
                                 .anyRequest().authenticated())
                         .exceptionHandling(exception -> exception
                                 .authenticationEntryPoint((request,
@@ -73,7 +74,21 @@ public class SecurityConfig {
                                 .logoutUrl("/api/auth/sign-out")
                                 .invalidateHttpSession(true)
                                 .deleteCookies("CLOUD_STORAGE_SESSION_ID")
-                                .logoutSuccessHandler(new HttpStatusReturningLogoutSuccessHandler(HttpStatus.NO_CONTENT))));
+                                .logoutSuccessHandler((request, response, authentication) -> {
+                                    if (authentication == null) {
+                                        response.setContentType("application/json");
+                                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+
+                                        ErrorResponse errorResponse = new ErrorResponse("User is not authorized");
+                                        ObjectMapper mapper = new ObjectMapper();
+                                        String jsonResponse = mapper.writeValueAsString(errorResponse);
+
+                                        response.getWriter().write(jsonResponse);
+                                        response.getWriter().flush();
+                                    } else {
+                                        response.setStatus(HttpServletResponse.SC_NO_CONTENT);
+                                    }
+                                })));
         return http.build();
     }
 
