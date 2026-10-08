@@ -125,8 +125,9 @@ public class MinIOService {
 
             String path = requestDto.decodedPath();
             String objectName = file.getOriginalFilename();
-
             assert objectName != null;
+            pathCreator.validatePath(objectName);
+
             if (objectName.contains("/")) {
                 createSubfolders(requestDto, path, objectName);
             }

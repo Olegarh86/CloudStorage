@@ -116,20 +116,20 @@ public class PathCreator {
         }
     }
 
-    private String getRootPath(String username) {
-        Long id = userRepository.findByUserName(username)
-                .orElseThrow(() -> new NotFoundException("User with name " + username + " not found"))
-                .getId();
-        return "user-" + id + "-files/";
-    }
-
-    private void validatePath(String path) {
+    public void validatePath(String path) {
         if (path.isBlank()) {
             return;
         }
         if (!path.matches("^[^\\\\:*?\"<>|]+$")) {
             throw new ValidateException("Invalid path: " + path);
         }
+    }
+
+    private String getRootPath(String username) {
+        Long id = userRepository.findByUserName(username)
+                .orElseThrow(() -> new NotFoundException("User with name " + username + " not found"))
+                .getId();
+        return "user-" + id + "-files/";
     }
 
     private String decodePath(String path) {
