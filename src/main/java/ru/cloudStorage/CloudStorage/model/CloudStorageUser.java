@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 @Getter
 @Table(name = "users")
 @NoArgsConstructor
-public class User {
+public class CloudStorageUser {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -17,7 +17,7 @@ public class User {
     private String password;
     private String role;
 
-    public User(String userName, String password) {
+    public CloudStorageUser(String userName, String password) {
         this.userName = userName;
         this.password = password;
         this.role = "ROLE_USER";

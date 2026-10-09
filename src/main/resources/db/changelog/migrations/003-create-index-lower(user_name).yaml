@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - changeSet:
+      id: 3
+      author: Olegarh
+      changes:
+        - dropUniqueConstraint:
+            tableName: users
+            constraintName: users_user_name_key
+
+        - createIndex:
+            tableName: users
+            indexName: idx_users_unique_username_lower
+            unique: true
+            columns:
+              - column:
+                  name: LOWER(user_name)

@@ -36,7 +36,7 @@ paths:
           required: true
           schema:
             type: string
-            pattern: '^(?!/)(?!.*//)(?!.*\.\.)[a-zA-Z0-9_\s.%/-]*$'
+            pattern: '^(?!/)(?!.*//)(?!.*\.\.)[\w\s.%/()а-яА-ЯёЁ-]*$'
       responses:
         "200":
           description: Information about the resource
@@ -87,7 +87,7 @@ paths:
           required: true
           schema:
             type: string
-            pattern: '^(?!/)(?!.*//)(?!.*\.\.)[a-zA-Z0-9_\s.%/-]*$'
+            pattern: '^(?!/)(?!.*//)(?!.*\.\.)[\w\s.%/()а-яА-ЯёЁ-]*$'
       requestBody:
         content:
           multipart/form-data:
@@ -148,7 +148,7 @@ paths:
           required: true
           schema:
             type: string
-            pattern: '^(?!/)(?!.*//)(?!.*\.\.)[a-zA-Z0-9_\s.%/-]*$'
+            pattern: '^(?!/)(?!.*//)(?!.*\.\.)[\w\s.%/()а-яА-ЯёЁ-]*$'
       responses:
         "204":
           description: Without a body
@@ -191,14 +191,14 @@ paths:
           required: true
           schema:
             type: string
-            pattern: '^(?!/)(?!.*//)(?!.*\.\.)[a-zA-Z0-9_\s.%/-]*$'
+            pattern: '^(?!/)(?!.*//)(?!.*\.\.)[\w\s.%/()а-яА-ЯёЁ-]*$'
         - name: to
           in: query
           description: New path to the resource
           required: true
           schema:
             type: string
-            pattern: '^(?!/)(?!.*//)(?!.*\.\.)[a-zA-Z0-9_\s.%/-]*$'
+            pattern: '^(?!/)(?!.*//)(?!.*\.\.)[\w\s.%/()а-яА-ЯёЁ-]*$'
       responses:
         "200":
           description: Information about the moved/renamed resource
@@ -250,7 +250,7 @@ paths:
           required: true
           schema:
             type: string
-            pattern: '^(?!/)(?!.*//)(?!.*\.\.)[a-zA-Z0-9_\s.%/-]*$'
+            pattern: '^(?!/)(?!.*//)(?!.*\.\.)[\w\s.%/()а-яА-ЯёЁ-]*$'
       responses:
         "200":
           description: A collection of resources located in a folder (not recursive)
@@ -297,7 +297,7 @@ paths:
           required: true
           schema:
             type: string
-            pattern: '^(?!/)(?!.*//)(?!.*\.\.)[a-zA-Z0-9_\s.%/-]*$'
+            pattern: '^(?!/)(?!.*//)(?!.*\.\.)[\w\s.%/()а-яА-ЯёЁ-]*$'
       responses:
         "201":
           description: Resource of the created folder
@@ -448,7 +448,7 @@ paths:
           required: true
           schema:
             type: string
-            pattern: '^(?!/)(?!.*//)(?!.*\.\.)[a-zA-Z0-9_\s.%/-]*$'
+            pattern: '^(?!/)(?!.*//)(?!.*\.\.)[\w\s.%/()а-яА-ЯёЁ-]*$'
       responses:
         "200":
           description: Collection of found resources
@@ -490,7 +490,7 @@ paths:
           required: true
           schema:
             type: string
-            pattern: '^(?!/)(?!.*//)(?!.*\.\.)[a-zA-Z0-9_\s.%/-]*$'
+            pattern: '^(?!/)(?!.*//)(?!.*\.\.)[\w\s.%/()а-яА-ЯёЁ-]*$'
       responses:
         "200":
           description: "Binary content of a file with Content-Type: application/octet-stream"

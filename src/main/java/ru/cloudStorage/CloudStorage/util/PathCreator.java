@@ -8,7 +8,7 @@ import ru.cloudStorage.CloudStorage.dto.RenameRequestDto;
 import ru.cloudStorage.CloudStorage.dto.RequestDto;
 import ru.cloudStorage.CloudStorage.exception.NotFoundException;
 import ru.cloudStorage.CloudStorage.exception.ValidateException;
-import ru.cloudStorage.CloudStorage.repository.UserRepository;
+import ru.cloudStorage.CloudStorage.repository.CloudStorageUserRepository;
 import ru.cloudStorage.CloudStorage.service.AuthService;
 
 import java.net.URLDecoder;
@@ -19,11 +19,11 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 public class PathCreator {
 
     private final MinioProperties minioProperties;
-    private final UserRepository userRepository;
+    private final CloudStorageUserRepository userRepository;
     private final AuthService authService;
 
     @Autowired
-    public PathCreator(MinioProperties minioProperties, UserRepository userRepository, AuthService authService) {
+    public PathCreator(MinioProperties minioProperties, CloudStorageUserRepository userRepository, AuthService authService) {
         this.minioProperties = minioProperties;
         this.userRepository = userRepository;
         this.authService = authService;

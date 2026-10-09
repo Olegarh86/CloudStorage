@@ -13,7 +13,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
-import ru.cloudStorage.CloudStorage.repository.UserRepository;
+import ru.cloudStorage.CloudStorage.repository.CloudStorageUserRepository;
 
 
 @SpringBootTest
@@ -25,7 +25,7 @@ public abstract class BaseIntegrationTest {
     protected final String name = "TestUser";
     protected final String password = "TestUser123";
     @Autowired
-    protected UserRepository userRepository;
+    protected CloudStorageUserRepository userRepository;
     @Autowired
     protected MockMvc mockMvc;
     @Autowired

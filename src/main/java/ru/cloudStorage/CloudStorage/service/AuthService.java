@@ -15,8 +15,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.cloudStorage.CloudStorage.dto.AuthRequest;
 import ru.cloudStorage.CloudStorage.exception.AlreadyExistException;
-import ru.cloudStorage.CloudStorage.model.User;
-import ru.cloudStorage.CloudStorage.repository.UserRepository;
+import ru.cloudStorage.CloudStorage.model.CloudStorageUser;
+import ru.cloudStorage.CloudStorage.repository.CloudStorageUserRepository;
 
 import java.util.Objects;
 
@@ -26,21 +26,21 @@ public class AuthService {
 
     private final AuthenticationManager authenticationManager;
     private final PasswordEncoder passwordEncoder;
-    private final UserRepository userRepository;
+    private final CloudStorageUserRepository userRepository;
 
     @Autowired
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager) {
+    public AuthService(CloudStorageUserRepository userRepository, PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
     }
 
     @Transactional
-    public User createNewUser(AuthRequest authRequest) {
+    public CloudStorageUser createNewUser(AuthRequest authRequest) {
         String encodedPassword = passwordEncoder.encode(authRequest.password());
-        User saved;
+        CloudStorageUser saved;
         try {
-            saved = userRepository.save(new User(authRequest.username(), encodedPassword));
+            saved = userRepository.save(new CloudStorageUser(authRequest.username(), encodedPassword));
         } catch (DataIntegrityViolationException e) {
             throw new AlreadyExistException("User with name: '" + authRequest.username() + "' already exist, change another");
         }
@@ -67,7 +67,7 @@ public class AuthService {
         return userDetails.getUsername();
     }
 
-    public User findUserByUserName(String username) {
+    public CloudStorageUser findUserByUserName(String username) {
         return userRepository.findByUserName(username).orElseThrow(() -> new UsernameNotFoundException("User not " +
                                                                                                        "found"));
     }

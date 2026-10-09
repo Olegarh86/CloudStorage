@@ -8,6 +8,7 @@ logs/
 .env
 *.log
 launch-local-nginx.sh
+/tomcat-multipart-tmp/
 
 ### STS ###
 .apt_generated

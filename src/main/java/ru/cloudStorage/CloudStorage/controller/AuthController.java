@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import ru.cloudStorage.CloudStorage.api.AuthenticationApi;
 import ru.cloudStorage.CloudStorage.dto.AuthRequest;
 import ru.cloudStorage.CloudStorage.dto.AuthResponse;
-import ru.cloudStorage.CloudStorage.model.User;
+import ru.cloudStorage.CloudStorage.model.CloudStorageUser;
 import ru.cloudStorage.CloudStorage.service.AuthService;
 import ru.cloudStorage.CloudStorage.service.MinIOService;
 
@@ -36,7 +36,7 @@ public class AuthController implements AuthenticationApi {
 
     @Override
     public ResponseEntity<AuthResponse> createNewUser(AuthRequest authRequest) {
-        User newUser = authService.createNewUser(authRequest);
+        CloudStorageUser newUser = authService.createNewUser(authRequest);
         authService.login(authRequest, request);
         minioService.createNewRootFolder(newUser.getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(new AuthResponse(newUser.getUserName()));

@@ -125,7 +125,10 @@ public class MinIOService {
 
             String path = requestDto.decodedPath();
             String objectName = file.getOriginalFilename();
-            assert objectName != null;
+
+            if (objectName == null) {
+                throw new ValidateException("File name is empty");
+            }
             pathCreator.validatePath(objectName);
 
             if (objectName.contains("/")) {
