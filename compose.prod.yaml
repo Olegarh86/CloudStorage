@@ -49,14 +49,14 @@ services:
     networks:
       - storage-network
     ports:
-      - "9001:9001"
+      - "127.0.0.1:9001:9001"
     volumes:
       - minio_data:/data
     env_file:
       - .env
     command: server /data --address ":9000" --console-address ":9001"
   storage-app:
-    image: "olegarholeg/storage-app"
+    image: "olegarholeg/storage-app:1.0.0"
     container_name: "storage-app"
     restart: "always"
     networks:
@@ -72,6 +72,8 @@ services:
       - .env
     environment:
       - SPRING_PROFILES_ACTIVE=docker
+    volumes:
+      - app_tmp:/app/tomcat-multipart-tmp
 networks:
   storage-network:
     driver: bridge
@@ -79,3 +81,4 @@ networks:
 volumes:
   pgdata:
   minio_data:
+  app_tmp:

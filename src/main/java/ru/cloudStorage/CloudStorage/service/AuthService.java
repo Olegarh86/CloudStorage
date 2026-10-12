@@ -47,7 +47,7 @@ public class AuthService {
         return saved;
     }
 
-    public void login(AuthRequest authRequest, HttpServletRequest request) {
+    public String login(AuthRequest authRequest, HttpServletRequest request) {
         UsernamePasswordAuthenticationToken token =
                 new UsernamePasswordAuthenticationToken(authRequest.username(), authRequest.password());
 
@@ -56,6 +56,7 @@ public class AuthService {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         HttpSession session = request.getSession(true);
         session.setAttribute("SPRING_SECURITY_CONTEXT", SecurityContextHolder.getContext());
+        return authentication.getName();
     }
 
     public String getUsername() {
@@ -63,7 +64,9 @@ public class AuthService {
                         .getContext()
                         .getAuthentication())
                 .getPrincipal();
-        assert userDetails != null;
+        if(userDetails == null) {
+            throw new UsernameNotFoundException("User not found");
+        }
         return userDetails.getUsername();
     }
 

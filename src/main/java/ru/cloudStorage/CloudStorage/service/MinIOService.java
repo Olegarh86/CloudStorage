@@ -105,10 +105,7 @@ public class MinIOService {
 
     public void delete(RequestDto requestDto) {
         if (objectAlreadyExist(requestDto.bucketName(), requestDto.rootPath(), requestDto.decodedPath())) {
-            Iterable<Result<Item>> deletedObjects = getListObjects(
-                    requestDto.bucketName(), requestDto.rootPath() + requestDto.decodedPath(), true);
-
-            deleteObjects(requestDto.bucketName(), deletedObjects);
+            deleteObjects(requestDto);
         } else {
             throw new ObjectNotExistException(requestDto.decodedPath());
         }
@@ -204,15 +201,69 @@ public class MinIOService {
     }
 
     public ResourceResponseDto rename(RenameRequestDto requestDto) {
-        if (objectAlreadyExist(requestDto.bucketName(), requestDto.rootPath(), requestDto.decodedPathTo())) {
-            throw new AlreadyExistException("Resource already exist: '" + requestDto.decodedPathTo() + "'");
+        if (objectAlreadyExist(requestDto.bucketName(), requestDto.rootPath(), requestDto.pathWithNameTo())) {
+            throw new AlreadyExistException("Resource already exist: '" + requestDto.pathWithNameTo() + "'");
         }
         ResourceResponseDto responseDto;
+        List<RenameRequestDto> tempObjects = new ArrayList<>();
 
-        if (requestDto.decodedPathFrom().endsWith("/")) {
-            Iterable<Result<Item>> objects = getListObjects(
-                    requestDto.bucketName(), requestDto.rootPath() + requestDto.decodedPathFrom(), true);
+        try {
+            if (requestDto.pathWithNameFrom().endsWith("/")) {
+                List<String> pathsWithNames = getFullPathsWithNames(requestDto);
 
+                for (String pathWithName : pathsWithNames) {
+                    RenameRequestDto newRequestDto = getRenameRequestDto(requestDto, pathWithName);
+
+                    if (pathWithName.endsWith("/")) {
+                        createFolder(newRequestDto.bucketName(), newRequestDto.rootPath(), newRequestDto.pathWithNameTo());
+                    } else {
+                        copyObject(newRequestDto.bucketName(), newRequestDto.rootPath(), newRequestDto.pathWithNameFrom(),
+                                newRequestDto.pathWithNameTo());
+                    }
+                    tempObjects.add(newRequestDto);
+                }
+                try {
+                    deleteObjects(new RequestDto(requestDto.bucketName(), requestDto.rootPath(),
+                            requestDto.pathWithNameFrom()));
+                } catch (Exception e) {
+                    throw new RenameObjectException("Error while deleted old data from MinIO", e);
+                }
+                responseDto = new ResourceResponseDto(
+                        pathCreator.getObjectPath(requestDto.pathWithNameTo()),
+                        pathCreator.getObjectName(requestDto.pathWithNameTo()));
+            } else {
+                copyObject(requestDto.bucketName(), requestDto.rootPath(), requestDto.pathWithNameFrom(),
+                        requestDto.pathWithNameTo());
+                tempObjects.add(requestDto);
+                StatObjectResponse object = getStatObjectIfExist(requestDto.bucketName(), requestDto.rootPath(), requestDto.pathWithNameTo());
+                try {
+                    deleteObject(requestDto.bucketName(), requestDto.rootPath(), requestDto.pathWithNameFrom());
+                } catch (Exception e) {
+                    throw new RenameObjectException("Error while deleted old data from MinIO", e);
+                }
+                responseDto = new ResourceResponseDto(pathCreator.getObjectPath(requestDto.pathWithNameTo()),
+                        pathCreator.getObjectName(requestDto.pathWithNameTo()),
+                        object.size());
+            }
+        }catch (ObjectNotExistException e) {
+            throw new NotFoundException("Object not exist: " + requestDto.pathWithNameFrom());
+        } catch (RenameObjectException e) {
+            throw new RenameObjectException("Error while renaming data from MinIO", e);
+        } catch (Exception e) {
+            for (RenameRequestDto object : tempObjects) {
+                deleteObject(object.bucketName(), object.rootPath(), object.pathWithNameTo());
+            }
+            throw new RenameObjectException("Error while renaming data from MinIO", e);
+        }
+        return responseDto;
+    }
+
+    private List<String> getFullPathsWithNames(RenameRequestDto requestDto) {
+        List<String> result = new ArrayList<>();
+        Iterable<Result<Item>> objects = getListObjects(
+                requestDto.bucketName(), requestDto.rootPath() + requestDto.pathWithNameFrom(), true);
+
+        if (objects.iterator().hasNext()) {
             for (Result<Item> object : objects) {
                 Item item;
                 try {
@@ -220,24 +271,12 @@ public class MinIOService {
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
-                String oldNameWithFullPath = item.objectName();
-                RenameRequestDto newRequestDto = getRenameRequestDto(requestDto, oldNameWithFullPath);
-
-                if (oldNameWithFullPath.endsWith("/")) {
-                    createFolder(requestDto.bucketName(), requestDto.rootPath(), newRequestDto.decodedPathTo());
-                    deleteObject(requestDto.bucketName(), requestDto.rootPath(), newRequestDto.decodedPathFrom());
-                } else {
-                    renameObject(newRequestDto);
-                }
+                result.add(item.objectName());
             }
-            responseDto = new ResourceResponseDto(
-                    pathCreator.getObjectPath(requestDto.decodedPathTo()),
-                    pathCreator.getObjectName(requestDto.decodedPathTo()));
         } else {
-            responseDto = renameObject(requestDto);
+            throw new NotFoundException("Resource not found: '" + requestDto.pathWithNameTo() + "'");
         }
-        return responseDto;
-
+        return result;
     }
 
     public boolean objectAlreadyExist(String bucketName, String rootPath, String decodedPath) {
@@ -314,19 +353,18 @@ public class MinIOService {
     }
 
     private ResourceResponseDto renameObject(RenameRequestDto requestDto) {
-        copyObject(requestDto.bucketName(), requestDto.rootPath(), requestDto.decodedPathFrom(),
-                requestDto.decodedPathTo());
-        deleteObject(requestDto.bucketName(), requestDto.rootPath(), requestDto.decodedPathFrom());
-        StatObjectResponse object = getStatObjectIfExist(requestDto.bucketName(), requestDto.rootPath(), requestDto.decodedPathTo());
+        copyObject(requestDto.bucketName(), requestDto.rootPath(), requestDto.pathWithNameFrom(),
+                requestDto.pathWithNameTo());
+        StatObjectResponse object = getStatObjectIfExist(requestDto.bucketName(), requestDto.rootPath(), requestDto.pathWithNameTo());
         return new ResourceResponseDto(
-                pathCreator.getObjectPath(requestDto.decodedPathTo()),
-                pathCreator.getObjectName(requestDto.decodedPathTo()),
+                pathCreator.getObjectPath(requestDto.pathWithNameTo()),
+                pathCreator.getObjectName(requestDto.pathWithNameTo()),
                 object.size());
     }
 
     @NotNull
     private RenameRequestDto getRenameRequestDto(RenameRequestDto requestDto, String oldNameWithFullPath) {
-        String newNameWithFullPath = oldNameWithFullPath.replace(requestDto.decodedPathFrom(), requestDto.decodedPathTo());
+        String newNameWithFullPath = oldNameWithFullPath.replace(requestDto.pathWithNameFrom(), requestDto.pathWithNameTo());
 
         String oldNameWithPath = oldNameWithFullPath.replace(requestDto.rootPath(), "");
         String newNameWithPath = newNameWithFullPath.replace(requestDto.rootPath(), "");
@@ -429,19 +467,21 @@ public class MinIOService {
         }
     }
 
-    private void deleteObjects(String bucketName, Iterable<Result<Item>> deletedObjects) {
+    private void deleteObjects(RequestDto requestDto) {
+        Iterable<Result<Item>> deletedObjects = getListObjects(
+                requestDto.bucketName(), requestDto.rootPath() + requestDto.decodedPath(), true);
         List<DeleteObject> objects = new LinkedList<>();
 
-        for (Result<Item> result : deletedObjects) {
+        for (Result<Item> object : deletedObjects) {
             try {
-                objects.add(new DeleteObject(result.get().objectName()));
+                objects.add(new DeleteObject(object.get().objectName()));
             } catch (Exception e) {
                 throw new RemoveObjectException("Object not deleted", e);
             }
         }
         Iterable<Result<DeleteError>> results = minioClient.removeObjects(
                 RemoveObjectsArgs.builder()
-                        .bucket(bucketName)
+                        .bucket(requestDto.bucketName())
                         .objects(objects)
                         .build());
 

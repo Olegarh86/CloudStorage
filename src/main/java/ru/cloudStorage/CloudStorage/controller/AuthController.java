@@ -28,17 +28,17 @@ public class AuthController implements AuthenticationApi {
 
     @Override
     public ResponseEntity<AuthResponse> authenticate(AuthRequest authRequest) {
-        authService.login(authRequest, request);
+        String login = authService.login(authRequest, request);
         return ResponseEntity.status(HttpStatus.OK)
                 .header("Content-Type", "application/json")
-                .body(new AuthResponse(authRequest.username()));
+                .body(new AuthResponse(login));
     }
 
     @Override
     public ResponseEntity<AuthResponse> createNewUser(AuthRequest authRequest) {
         CloudStorageUser newUser = authService.createNewUser(authRequest);
-        authService.login(authRequest, request);
+        String login = authService.login(authRequest, request);
         minioService.createNewRootFolder(newUser.getId());
-        return ResponseEntity.status(HttpStatus.CREATED).body(new AuthResponse(newUser.getUserName()));
+        return ResponseEntity.status(HttpStatus.CREATED).body(new AuthResponse(login));
     }
 }
