@@ -27,7 +27,7 @@ public class DirectoryController implements FoldersApi {
     @Override
     public ResponseEntity<List<ResourceResponseDto>> getDirectory(String path) {
         RequestDto dto = pathCreator.createRequestDto(path);
-        List<ResourceResponseDto> allObjects = minioService.getAllObjects(dto);
+        List<ResourceResponseDto> allObjects = minioService.getAllObjectsFromDirectory(dto);
         return new ResponseEntity<>(allObjects, HttpStatus.OK);
     }
 

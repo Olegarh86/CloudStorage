@@ -12,6 +12,7 @@ import ru.cloudStorage.CloudStorage.repository.CloudStorageUserRepository;
 import ru.cloudStorage.CloudStorage.service.AuthService;
 
 import java.net.URLDecoder;
+import java.text.Normalizer;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -120,8 +121,12 @@ public class PathCreator {
         if (path.isBlank()) {
             return;
         }
-        if (!path.matches("^[^\\\\:*?\"<>|]+$")) {
-            throw new ValidateException("Invalid path: " + path);
+        String normalizedPath = Normalizer.normalize(path, Normalizer.Form.NFC);
+        if (!normalizedPath.matches("^[^\\\\:*?\"<>|]+$")) {
+            throw new ValidateException("Invalid path: " + normalizedPath);
+        }
+        if (normalizedPath.contains("//") || normalizedPath.contains("..")) {
+            throw new ValidateException("Invalid path: " + normalizedPath);
         }
     }
 

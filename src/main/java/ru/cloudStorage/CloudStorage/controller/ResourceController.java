@@ -43,7 +43,7 @@ public class ResourceController implements ResourcesApi {
     @Override
     public ResponseEntity<ResourceResponseDto> getObject(String path) {
         RequestDto dto = pathCreator.createRequestDto(path);
-        ResourceResponseDto resourceResponseDto = minioService.get(dto);
+        ResourceResponseDto resourceResponseDto = minioService.getObjectByPathWithName(dto);
         return new ResponseEntity<>(resourceResponseDto, HttpStatus.OK);
     }
 
