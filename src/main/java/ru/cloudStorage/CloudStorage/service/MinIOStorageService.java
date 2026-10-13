@@ -5,7 +5,6 @@ import io.minio.errors.ErrorResponseException;
 import io.minio.messages.DeleteError;
 import io.minio.messages.DeleteObject;
 import io.minio.messages.Item;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.stereotype.Service;
@@ -28,21 +27,23 @@ import static ru.cloudStorage.CloudStorage.dto.ResourceType.DIRECTORY;
 import static ru.cloudStorage.CloudStorage.dto.ResourceType.FILE;
 
 @Service
-public class MinIOService {
+public class MinIOStorageService implements Storage {
     private final MinioClient minioClient;
     private final PathCreator pathCreator;
 
     @Autowired
-    public MinIOService(MinioClient minioClient, PathCreator pathCreator) {
+    public MinIOStorageService(MinioClient minioClient, PathCreator pathCreator) {
         this.minioClient = minioClient;
         this.pathCreator = pathCreator;
     }
 
+    @Override
     public void createNewRootFolder(Long id) {
         RequestDto requestDto = pathCreator.createRootPath(id);
         createFolder(requestDto.bucketName(), requestDto.rootPath(), "");
     }
 
+    @Override
     public List<ResourceResponseDto> getAllObjectsFromDirectory(RequestDto requestDto) {
         if (!objectAlreadyExist(requestDto.bucketName(), requestDto.rootPath(), requestDto.decodedPath())) {
             throw new ObjectNotExistException("Root folder not exist: " + requestDto.decodedPath());
@@ -68,6 +69,7 @@ public class MinIOService {
         return result;
     }
 
+    @Override
     public ResourceResponseDto createNewFolder(RequestDto requestDto) {
         FolderDto folderDto = pathCreator.createFolderDto(requestDto);
 
@@ -82,6 +84,7 @@ public class MinIOService {
         return new ResourceResponseDto(folderDto.pathWithoutName(), folderDto.name());
     }
 
+    @Override
     public ResourceResponseDto getObjectByPathWithName(RequestDto requestDto) {
         String nameWithPath = requestDto.decodedPath();
         String path = pathCreator.getObjectPath(nameWithPath);
@@ -99,6 +102,7 @@ public class MinIOService {
         return result;
     }
 
+    @Override
     public void delete(RequestDto requestDto) {
         if (objectAlreadyExist(requestDto.bucketName(), requestDto.rootPath(), requestDto.decodedPath())) {
             deleteObjects(requestDto.bucketName(), requestDto.rootPath(), requestDto.decodedPath());
@@ -107,6 +111,7 @@ public class MinIOService {
         }
     }
 
+    @Override
     public List<ResourceResponseDto> upload(RequestDto requestDto, List<MultipartFile> files) {
         if (!objectAlreadyExist(requestDto.bucketName(), requestDto.rootPath(), requestDto.decodedPath())) {
             throw new NotFoundException("Resource not found: " + requestDto.decodedPath());
@@ -146,6 +151,7 @@ public class MinIOService {
         return result;
     }
 
+    @Override
     public InputStreamResource download(RequestDto requestDto) {
         if (!objectAlreadyExist(requestDto.bucketName(), requestDto.rootPath(), requestDto.decodedPath())) {
             throw new ObjectNotExistException("Object not exist: " + requestDto.decodedPath());
@@ -198,6 +204,7 @@ public class MinIOService {
         }
     }
 
+    @Override
     public ResourceResponseDto rename(RenameRequestDto renameRequestDto) {
         if (objectAlreadyExist(renameRequestDto.bucketName(), renameRequestDto.rootPath(), renameRequestDto.pathWithNameTo())) {
             throw new AlreadyExistException("Resource already exist: '" + renameRequestDto.pathWithNameTo() + "'");
@@ -211,7 +218,7 @@ public class MinIOService {
                         renameRequestDto.rootPath(), renameRequestDto.pathWithNameFrom());
 
                 for (String pathWithName : pathsWithNames) {
-                    RenameRequestDto newRequestDto = getRenameRequestDto(renameRequestDto, pathWithName);
+                    RenameRequestDto newRequestDto = pathCreator.getRenameRequestDto(renameRequestDto, pathWithName);
 
                     if (pathWithName.endsWith("/")) {
                         createFolder(newRequestDto.bucketName(), newRequestDto.rootPath(), newRequestDto.pathWithNameTo());
@@ -258,9 +265,35 @@ public class MinIOService {
         return responseDto;
     }
 
+    @Override
+    public List<ResourceResponseDto> search(RequestDto requestDto) {
+        List<String> pathsWithNames = getFullPathsWithNames(requestDto.bucketName(), requestDto.rootPath(), "");
+        List<ResourceResponseDto> result = new ArrayList<>();
+
+        for (String pathWithName : pathsWithNames) {
+            String fullPath = pathCreator.getObjectPath(pathWithName);
+            String name = pathCreator.getObjectName(pathWithName);
+
+            if (name.toLowerCase().contains(requestDto.decodedPath().toLowerCase()) && !fullPath.isBlank()) {
+                String path = fullPath.substring(requestDto.rootPath().length());
+                ResourceResponseDto responseDto;
+
+                if (pathWithName.endsWith("/") && !pathWithName.equals(requestDto.rootPath())) {
+                    responseDto = new ResourceResponseDto(path, name);
+                } else {
+                    StatObjectResponse objectStat = getStatObjectIfExist(requestDto.bucketName(),
+                            requestDto.rootPath(), path + name);
+                    responseDto = new ResourceResponseDto(path, name, objectStat.size());
+                }
+                result.add(responseDto);
+            }
+        }
+        return result;
+    }
+
     private List<StorageObject> getAllObjects(String bucketName, String rootPath, String pathWithName,
                                               boolean recursive) {
-        Iterable<Result<Item>> objects = getListObjects(bucketName,rootPath + pathWithName, recursive);
+        Iterable<Result<Item>> objects = getListObjects(bucketName, rootPath + pathWithName, recursive);
         String nameWithFullPath;
         List<StorageObject> result = new ArrayList<>();
 
@@ -301,38 +334,13 @@ public class MinIOService {
         return result;
     }
 
-    public boolean objectAlreadyExist(String bucketName, String rootPath, String decodedPath) {
+    private boolean objectAlreadyExist(String bucketName, String rootPath, String decodedPath) {
         try {
             getStatObjectIfExist(bucketName, rootPath, decodedPath);
         } catch (ObjectNotExistException e) {
             return false;
         }
         return true;
-    }
-
-    public List<ResourceResponseDto> search(RequestDto requestDto) {
-        List<String> pathsWithNames = getFullPathsWithNames(requestDto.bucketName(), requestDto.rootPath(), "");
-        List<ResourceResponseDto> result = new ArrayList<>();
-
-        for (String pathWithName : pathsWithNames) {
-            String fullPath = pathCreator.getObjectPath(pathWithName);
-            String name = pathCreator.getObjectName(pathWithName);
-
-            if (name.toLowerCase().contains(requestDto.decodedPath().toLowerCase()) && !fullPath.isBlank()) {
-                String path = fullPath.substring(requestDto.rootPath().length());
-                ResourceResponseDto responseDto;
-
-                if (pathWithName.endsWith("/") && !pathWithName.equals(requestDto.rootPath())) {
-                    responseDto = new ResourceResponseDto(path, name);
-                } else {
-                    StatObjectResponse objectStat = getStatObjectIfExist(requestDto.bucketName(),
-                            requestDto.rootPath(), path + name);
-                    responseDto = new ResourceResponseDto(path, name, objectStat.size());
-                }
-                result.add(responseDto);
-            }
-        }
-        return result;
     }
 
     private String renameDuplicate(String name) {
@@ -366,16 +374,6 @@ public class MinIOService {
         if (folderName.contains("/")) {
             createSubfolders(requestDto, objectPath, folderName);
         }
-    }
-
-    @NotNull
-    private RenameRequestDto getRenameRequestDto(RenameRequestDto requestDto, String oldNameWithFullPath) {
-        String newNameWithFullPath = oldNameWithFullPath.replace(requestDto.pathWithNameFrom(), requestDto.pathWithNameTo());
-
-        String oldNameWithPath = oldNameWithFullPath.replace(requestDto.rootPath(), "");
-        String newNameWithPath = newNameWithFullPath.replace(requestDto.rootPath(), "");
-
-        return new RenameRequestDto(requestDto.bucketName(), requestDto.rootPath(), oldNameWithPath, newNameWithPath);
     }
 
     private void createFolder(String bucketName, String rootPath, String objectName) {
@@ -502,12 +500,16 @@ public class MinIOService {
     }
 
     private Iterable<Result<Item>> getListObjects(String bucketName, String objectName, boolean recursive) {
-        return minioClient.listObjects(
-                ListObjectsArgs.builder()
-                        .bucket(bucketName)
-                        .prefix(objectName)
-                        .recursive(recursive)
-                        .build());
+        try {
+            return minioClient.listObjects(
+                    ListObjectsArgs.builder()
+                            .bucket(bucketName)
+                            .prefix(objectName)
+                            .recursive(recursive)
+                            .build());
+        } catch (Exception e) {
+            throw new MinIOException("Failed to list objects: " + objectName, e);
+        }
     }
 
     private RuntimeException translateException(ErrorResponseException e, String objectName) {

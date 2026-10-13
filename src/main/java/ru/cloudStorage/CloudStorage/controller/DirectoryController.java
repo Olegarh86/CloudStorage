@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import ru.cloudStorage.CloudStorage.api.FoldersApi;
 import ru.cloudStorage.CloudStorage.dto.RequestDto;
 import ru.cloudStorage.CloudStorage.dto.ResourceResponseDto;
-import ru.cloudStorage.CloudStorage.service.MinIOService;
+import ru.cloudStorage.CloudStorage.service.Storage;
 import ru.cloudStorage.CloudStorage.util.PathCreator;
 
 import java.util.List;
@@ -15,25 +15,25 @@ import java.util.List;
 
 @RestController
 public class DirectoryController implements FoldersApi {
-    private final MinIOService minioService;
+    private final Storage storage;
     private final PathCreator pathCreator;
 
     @Autowired
-    public DirectoryController(MinIOService minioService, PathCreator pathCreator) {
-        this.minioService = minioService;
+    public DirectoryController(Storage storage, PathCreator pathCreator) {
+        this.storage = storage;
         this.pathCreator = pathCreator;
     }
 
     @Override
     public ResponseEntity<List<ResourceResponseDto>> getDirectory(String path) {
         RequestDto dto = pathCreator.createRequestDto(path);
-        List<ResourceResponseDto> allObjects = minioService.getAllObjectsFromDirectory(dto);
+        List<ResourceResponseDto> allObjects = storage.getAllObjectsFromDirectory(dto);
         return new ResponseEntity<>(allObjects, HttpStatus.OK);
     }
 
     @Override
     public ResponseEntity<ResourceResponseDto> postDirectory(String path) {
         RequestDto dto = pathCreator.createRequestDto(path);
-        return new ResponseEntity<>(minioService.createNewFolder(dto), HttpStatus.CREATED);
+        return new ResponseEntity<>(storage.createNewFolder(dto), HttpStatus.CREATED);
     }
 }

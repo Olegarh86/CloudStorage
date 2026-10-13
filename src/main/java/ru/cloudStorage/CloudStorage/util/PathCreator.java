@@ -1,5 +1,6 @@
 package ru.cloudStorage.CloudStorage.util;
 
+import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import ru.cloudStorage.CloudStorage.config.MinioProperties;
@@ -57,6 +58,16 @@ public class PathCreator {
         String decodedPathTo = decodePath(to);
         validatePath(getObjectPath(decodedPathTo));
         return new RenameRequestDto(bucketName, rootPath, decodedPathFrom, decodedPathTo);
+    }
+
+    @NotNull
+    public RenameRequestDto getRenameRequestDto(RenameRequestDto requestDto, String oldNameWithFullPath) {
+        String newNameWithFullPath = oldNameWithFullPath.replace(requestDto.pathWithNameFrom(), requestDto.pathWithNameTo());
+
+        String oldNameWithPath = oldNameWithFullPath.replace(requestDto.rootPath(), "");
+        String newNameWithPath = newNameWithFullPath.replace(requestDto.rootPath(), "");
+
+        return new RenameRequestDto(requestDto.bucketName(), requestDto.rootPath(), oldNameWithPath, newNameWithPath);
     }
 
     public FolderDto createFolderDto(RequestDto dto) {

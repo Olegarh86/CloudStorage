@@ -10,20 +10,19 @@ import ru.cloudStorage.CloudStorage.dto.AuthRequest;
 import ru.cloudStorage.CloudStorage.dto.AuthResponse;
 import ru.cloudStorage.CloudStorage.model.CloudStorageUser;
 import ru.cloudStorage.CloudStorage.service.AuthService;
-import ru.cloudStorage.CloudStorage.service.MinIOService;
+import ru.cloudStorage.CloudStorage.service.Storage;
 
 @RestController
 public class AuthController implements AuthenticationApi {
-
     private final HttpServletRequest request;
     private final AuthService authService;
-    private final MinIOService minioService;
+    private final Storage storage;
 
     @Autowired
-    public AuthController(HttpServletRequest request, AuthService authService, MinIOService minioService) {
+    public AuthController(HttpServletRequest request, AuthService authService, Storage storage) {
         this.request = request;
         this.authService = authService;
-        this.minioService = minioService;
+        this.storage = storage;
     }
 
     @Override
@@ -38,7 +37,7 @@ public class AuthController implements AuthenticationApi {
     public ResponseEntity<AuthResponse> createNewUser(AuthRequest authRequest) {
         CloudStorageUser newUser = authService.createNewUser(authRequest);
         String login = authService.login(authRequest, request);
-        minioService.createNewRootFolder(newUser.getId());
+        storage.createNewRootFolder(newUser.getId());
         return ResponseEntity.status(HttpStatus.CREATED).body(new AuthResponse(login));
     }
 }
