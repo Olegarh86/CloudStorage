@@ -2,6 +2,7 @@ package ru.cloudStorage.CloudStorage.exception;
 
 public class CopyObjectException extends RuntimeException {
     public CopyObjectException(String message) {
+        super(message);
     }
 
     public CopyObjectException(String message, Throwable cause) {
