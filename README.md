@@ -52,18 +52,13 @@ Ensure you have [Docker Desktop](https://www.docker.com/products/docker-desktop/
 To deploy the ready-made cloud storage stack, you only need the infrastructure configuration files. [Copy](https://github.com/Olegarh86/CloudStorage) `compose.prod.yaml` and `.env.example` into your local working directory.
 
 ### 2. Configure the Environment
-Rename `.env.example` to `.env` and set up your specific configuration credentials to connect PostgreSQL, Redis, and the S3 storage bucket:
+Rename `.env.example` to `.env` and set up your specific configuration credentials to connect PostgreSQL and the S3 storage bucket:
 ```properties
-POSTGRES_DB=db_storage
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=your_secure_password
 
-REDIS_HOST=redis_storage
-REDIS_PORT=6379
-
-S3_ENDPOINT=http://minio:9000
-S3_ACCESS_KEY=minio_admin
-S3_SECRET_KEY=your_secure_s3_password
+MINIO_ROOT_USER=minio_admin
+MINIO_ROOT_PASSWORD=your_secure_s3_password
 ```
 
 ### 3. Start the storage
